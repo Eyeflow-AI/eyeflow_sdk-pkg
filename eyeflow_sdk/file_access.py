@@ -44,7 +44,7 @@ class FileAccess():
 
         self._cloud_obj = None
         if cloud_parms is not None:
-            comp_lib = importlib.import_module(f'utils.cloud_store.{cloud_parms["provider"]}')
+            comp_lib = importlib.import_module(f'eyeflow_sdk.cloud_store.{cloud_parms["provider"]}')
             self._cloud_obj = comp_lib.Connector(**cloud_parms)
 
     @staticmethod

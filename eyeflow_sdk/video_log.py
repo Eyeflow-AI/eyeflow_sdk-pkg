@@ -31,12 +31,12 @@ def clear_log(extract_path, max_files=MAX_EXTRACT_FILES):
                 pass
 #----------------------------------------------------------------------------------------------------------------------------------
 
-def upload_extracts(dataset_name, cloud_parms):
+def upload_extracts(dataset_id, cloud_parms):
     """
     Upload extracts of process to cloud
     """
 
-    log.info(f"Upload extracts dataset: {dataset_name}")
+    log.info(f"Upload extracts dataset: {dataset_id}")
 
     def save_extract_list(extract_path):
 
@@ -59,16 +59,16 @@ def upload_extracts(dataset_name, cloud_parms):
         with open(os.path.join(extract_path, 'extract_files.json'), 'w', newline='', encoding='utf8') as file_p:
             json.dump({"extract_list": files_list}, file_p, ensure_ascii=False, indent=2, default=str)
 
-    file_ac = FileAccess(storage="extract", resource_id=dataset_name, cloud_parms=cloud_parms)
+    file_ac = FileAccess(storage="extract", resource_id=dataset_id, cloud_parms=cloud_parms)
     clear_log(file_ac.get_local_folder())
     save_extract_list(file_ac.get_local_folder())
     file_ac.sync_files(origin="local")
 #----------------------------------------------------------------------------------------------------------------------------------
 
 class VideoLog(object):
-    def __init__(self, dataset_name, vlog_size):
+    def __init__(self, dataset_id, vlog_size):
         self._vlog_size = vlog_size
-        file_ac = FileAccess(storage="extract", resource_id=dataset_name)
+        file_ac = FileAccess(storage="extract", resource_id=dataset_id)
         self._dest_path = file_ac.get_local_folder()
         self._last_log = datetime.datetime(2000, 1, 1)
 

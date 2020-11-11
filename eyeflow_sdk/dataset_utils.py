@@ -91,7 +91,7 @@ class Dataset():
         db_mongo = Dataset.get_mongo_database(self.db_config)
 
         if self.id:
-            self.parms = db_mongo.dataset.find_one({"_id": self.id})
+            self.parms = db_mongo.dataset.find_one({"_id": ObjectId(self.id)})
 
             if self.parms is None:
                 raise Exception('Dataset not found: %s' % self.id)
@@ -390,14 +390,14 @@ class Dataset():
                                origin="cloud"
                               )
 
-        if self.dataset_name and file_ac.is_file(f"{self.dataset_name}.json"):
-            base_file_name = self.dataset_name + ".dset"
-            diff_file_name = self.dataset_name + '_diff.dset'
-            data_filename = self.dataset_name + ".json"
-        elif self.id and file_ac.is_file(f"{self.id}.json"):
+        if self.id and file_ac.is_file(f"{self.id}.json"):
             base_file_name = self.id + ".dset"
             diff_file_name = self.id + '_diff.dset'
             data_filename = self.id + ".json"
+        elif self.dataset_name and file_ac.is_file(f"{self.dataset_name}.json"):
+            base_file_name = self.dataset_name + ".dset"
+            diff_file_name = self.dataset_name + '_diff.dset'
+            data_filename = self.dataset_name + ".json"
         else:
             raise Exception(f'Base export file {self.dataset_name}.json or {self.id}.json does not exist')
 

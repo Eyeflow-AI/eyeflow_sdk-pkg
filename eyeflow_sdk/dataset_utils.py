@@ -5,6 +5,7 @@ Dataset manipulation functions
 Author: Alex Sobral de Freitas
 """
 
+import os
 import json
 import random
 import copy
@@ -16,6 +17,7 @@ import re
 
 import cv2
 import numpy as np
+import h5py
 
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -247,21 +249,44 @@ class Dataset():
         return train_dataset, val_dataset, test_dataset
 
 
+    # @staticmethod
+    # def export_to_pb(parms, examples, images, filename):
+    #     """
+    #     Export dataset to file in protobuf format
+    #     """
+    #     dsetfile = DsetFile()
+    #     dsetfile.parms = json.dumps(parms, ensure_ascii=False, default=default_json_converter)
+    #     dsetfile.examples.extend([json.dumps(exp, ensure_ascii=False, default=default_json_converter) for exp in examples])
+    #     for img in images:
+    #         dsetfile.images[img] = images[img]
+
+    #     file_ac = FileAccess(storage="export")
+
+    #     with file_ac.open(filename, 'wb') as fp:
+    #         fp.write(dsetfile.SerializeToString())
+
+
     @staticmethod
-    def export_to_pb(parms, examples, images, filename):
+    def export_to_hdf5(parms, examples, images, filename):
         """
-        Export dataset to file in protobuf format
+        Export dataset to file in hdf5 format
         """
-        dsetfile = DsetFile()
-        dsetfile.parms = json.dumps(parms, ensure_ascii=False, default=default_json_converter)
-        dsetfile.examples.extend([json.dumps(exp, ensure_ascii=False, default=default_json_converter) for exp in examples])
-        for img in images:
-            dsetfile.images[img] = images[img]
+        example_list = []
+        image_list = []
+        for exp in examples:
+            example_list.append(json.dumps(exp, ensure_ascii=False, default=default_json_converter))
+            image_list.append(images[exp["example"]])
+
+        dt = h5py.special_dtype(vlen=str) 
+        example_list = np.array(example_list, dtype=dt)
+        image_list = np.array(image_list)
 
         file_ac = FileAccess(storage="export")
-
-        with file_ac.open(filename, 'wb') as fp:
-            fp.write(dsetfile.SerializeToString())
+        export_path = file_ac.get_local_folder()
+        with h5py.File(os.path.join(export_path, filename), 'w') as dsetfile:
+            dsetfile.create_dataset('examples', data=example_list, compression="gzip", compression_opts=9)
+            dsetfile.create_dataset('images', data=image_list)
+            dsetfile.create_dataset('parms', data=json.dumps(parms, ensure_ascii=False, default=default_json_converter), dtype=dt)
 
 
     def export_dataset(self):
@@ -276,7 +301,7 @@ class Dataset():
 
         def save_export_data(filename, diff_examples):
             export_data = {
-                "export_version": "1",
+                "export_version": "2",
                 "export_date": datetime.datetime.now(),
                 "dataset": self.dataset_name,
                 "dataset_id": self.id,
@@ -294,7 +319,7 @@ class Dataset():
 
         if not file_ac.is_file(base_file_name):
             # Dataset.export_to_file(base_file_name)
-            Dataset.export_to_pb(self.parms, self.examples, self.images, base_file_name)
+            Dataset.export_to_hdf5(self.parms, self.examples, self.images, base_file_name)
             save_export_data(data_filename, diff_examples=0)
             if self._cloud_parms is not None:
                 file_ac.sync_files(file_list=[base_file_name, data_filename],
@@ -302,7 +327,7 @@ class Dataset():
             log.info("Dataset exported to file %d examples" % len(self.examples))
             return
 
-        base_parms, base_examples = Dataset.import_from_pb(base_file_name, retrieve_images=False)
+        base_parms, base_examples = Dataset.import_from_hdf5(base_file_name, retrieve_images=False)
 
         base_examples_list = {}
         for exp in base_examples:
@@ -318,7 +343,7 @@ class Dataset():
                 export_examples.append(exp)
 
         if export_examples or (self.parms != base_parms):
-            Dataset.export_to_pb(self.parms, export_examples, export_images, diff_file_name)
+            Dataset.export_to_hdf5(self.parms, export_examples, export_images, diff_file_name)
             save_export_data(data_filename, diff_examples=len(export_examples))
             if self._cloud_parms is not None:
                 file_ac.sync_files(file_list=[base_file_name, diff_file_name, data_filename],
@@ -333,7 +358,8 @@ class Dataset():
         Import dataset from file in protobuf format
         """
         def convert_date(str_date):
-            return dateutil.parser.isoparse(str_date)
+            return dateutil.parser.isoparse(str_date).replace(tzinfo=None)
+            
 
         file_ac = FileAccess(storage="export")
 
@@ -352,6 +378,7 @@ class Dataset():
             exp = json.loads(exp)
             exp["_id"] = ObjectId(exp["_id"])
             exp["date"] = convert_date(exp.get("date"))
+            exp["dataset_id"] = ObjectId(exp["dataset_id"])
             if "modified_date" in exp:
                 exp["modified_date"] = convert_date(exp.get("modified_date"))
 
@@ -363,6 +390,48 @@ class Dataset():
         images = {}
         for img in dset.images:
             images[img] = dset.images[img]
+
+        return parms, examples, images
+
+
+    @staticmethod
+    def import_from_hdf5(filename, retrieve_images=True):
+        """
+        Import dataset from file in protobuf format
+        """
+        def convert_date(str_date):
+            return dateutil.parser.isoparse(str_date).replace(tzinfo=None)
+
+        file_ac = FileAccess(storage="export")
+        export_path = file_ac.get_local_folder()
+        with h5py.File(os.path.join(export_path, filename), 'r') as dsetfile:
+            example_list = dsetfile['examples'][()].tolist()
+            image_list = dsetfile['images'][()].tolist()
+            parms = dsetfile['parms'][()]
+
+
+        parms = json.loads(parms)
+        parms["_id"] = ObjectId(parms["_id"])
+        parms["info"]["creation_date"] = convert_date(parms["info"].get("creation_date"))
+        parms["info"]["modified_date"] = convert_date(parms["info"].get("modified_date"))
+
+        examples = []
+        for exp in example_list:
+            exp = json.loads(exp)
+            exp["_id"] = ObjectId(exp["_id"])
+            exp["date"] = convert_date(exp.get("date"))
+            exp["dataset_id"] = ObjectId(exp["dataset_id"])
+            if "modified_date" in exp:
+                exp["modified_date"] = convert_date(exp.get("modified_date"))
+
+            examples.append(exp)
+
+        if not retrieve_images:
+            return parms, examples
+
+        images = {}
+        for exp, img in zip(examples, image_list):
+            images[exp["example"]] = img
 
         return parms, examples, images
 
@@ -386,9 +455,7 @@ class Dataset():
         file_ac = FileAccess(storage="export", cloud_parms=self._cloud_parms)
 
         if self._cloud_parms is not None:
-            file_ac.sync_files(file_list=file_list,
-                               origin="cloud"
-                              )
+            file_ac.sync_files(file_list=file_list, origin="cloud")
 
         if self.id and file_ac.is_file(f"{self.id}.json"):
             base_file_name = self.id + ".dset"
@@ -399,7 +466,7 @@ class Dataset():
             diff_file_name = self.dataset_name + '_diff.dset'
             data_filename = self.dataset_name + ".json"
         else:
-            raise Exception(f'Base export file {self.dataset_name}.json or {self.id}.json does not exist')
+            raise Exception(f'Export file {self.dataset_name}.json or {self.id}.json does not exist')
 
         with file_ac.open(data_filename, 'r', newline='', encoding='utf8') as fp:
             export_data = json.load(fp)
@@ -407,12 +474,23 @@ class Dataset():
         if not file_ac.is_file(base_file_name):
             raise Exception(f"Base export file {base_file_name} does not exist")
 
-        self.parms, self.examples, self.images = Dataset.import_from_pb(base_file_name)
+        if export_data.get("export_version") == '1':
+            self.parms, self.examples, self.images = Dataset.import_from_pb(base_file_name)
+        elif export_data.get("export_version") == '2':
+            self.parms, self.examples, self.images = Dataset.import_from_hdf5(base_file_name)
+        else:
+            raise Exception(f'Unknown export version: {export_data.get("export_version")}')
+
         self.dataset_name = str(self.parms["name"])
         self.id = str(self.parms["_id"])
 
         if file_ac.is_file(diff_file_name) and export_data.get("diff_examples", 0) > 0:
-            self.parms, diff_examples, diff_images = Dataset.import_from_pb(diff_file_name)
+            if export_data.get("export_version") == '1':
+                self.parms, diff_examples, diff_images = Dataset.import_from_pb(diff_file_name)
+            elif export_data.get("export_version") == '2':
+                self.parms, diff_examples, diff_images = Dataset.import_from_hdf5(diff_file_name)
+            else:
+                raise Exception(f'Unknown export version: {export_data.get("export_version")}')
 
             for diff_exp in diff_examples:
                 for idx, exp in enumerate(self.examples):

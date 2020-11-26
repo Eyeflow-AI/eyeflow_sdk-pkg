@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="eyeflow_sdk",
-    version="0.9.10",
+    version="0.9.11",
     author="SiliconLife.AI",
     author_email="support@siliconlife.ai",
     description="Functions and classes for development of Eyeflow Applications",
@@ -21,6 +21,7 @@ setuptools.setup(
         "opencv-python",
         "pillow",
         "protobuf",
+        "h5py",
         "arrow",
         "psutil",
         "pynvml",

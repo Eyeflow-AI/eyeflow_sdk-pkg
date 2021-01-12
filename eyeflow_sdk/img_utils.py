@@ -1,19 +1,23 @@
 """
-Copyright 2017-2018 Fizyr (https://fizyr.com)
+SiliconLife Eyeflow
+Image manipulation functions
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Author: Alex Sobral de Freitas
 
-    http://www.apache.org/licenses/LICENSE-2.0
+This code may contain code from:
+    Copyright 2017-2018 Fizyr (https://fizyr.com)
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
 
-Modifications: Alex Sobral
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 
 import numpy as np
@@ -59,24 +63,38 @@ def preprocess_image(image, mode):
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 
-def resize_image(image, min_side, max_side, enforce_max=False):
-    """ Resize an image such that the size is constrained to min_side and max_side.
+def compute_resize_scale(image_shape, min_side, max_side):
+    """ Compute scale to resize an image such that the size is constrained to min_side and max_side.
 
     Args
-        min_side: The image's min side will be equal to min_side after resizing.
-        max_side: If after resizing the image's max side is above max_side, resize until the max side is equal to max_side.
+        image_shape: The original image shape.
+        min_side: If after resizing the image's shorter side is below min_side, resize until the shorter side is equal to min_side.
+        max_side: The image's max side will be equal to max_side after resizing.
 
     Returns
         A resized image.
     """
-    (rows, cols) = (image.shape[0], image.shape[1])
-    largest_side = max(rows, cols)
-    scale = max_side / largest_side
+    scale = max_side / max(image_shape[:2])
+    shorter_side = min(image_shape[:2])
+    if shorter_side * scale < min_side:
+        scale = min_side / shorter_side
+    
+    return scale
+# ---------------------------------------------------------------------------------------------------------------------------------
 
-    if not enforce_max:
-        smallest_side = min(rows, cols)
-        if smallest_side * scale < min_side:
-            scale = min_side / smallest_side
+
+def resize_image(image, min_side, max_side):
+    """ Resize an image such that the size is constrained to min_side and max_side.
+
+    Args
+        min_side: If after resizing the image's shorter side is below min_side, resize until the shorter side is equal to min_side.
+        max_side: The image's max side will be equal to max_side after resizing.
+
+    Returns
+        A resized image.
+    """
+
+    scale = compute_resize_scale(image.shape, min_side, max_side)
 
     # resize the image with the computed scale
     image = cv2.resize(image, None, fx=scale, fy=scale)
@@ -84,6 +102,30 @@ def resize_image(image, min_side, max_side, enforce_max=False):
         image = np.expand_dims(image, axis=-1)
 
     return image, scale
+# ---------------------------------------------------------------------------------------------------------------------------------
+
+
+def resize_image_pad(image, target_height, target_width):
+    """ Resize an image with padding to mantain aspect ratio.
+
+    Args
+        target_height: Target height to resize
+        target_width: Target width to resize
+
+    Returns
+        A resized image with the target resolution and same aspect ratio.
+    """
+    (rows, cols) = (image.shape[0], image.shape[1])
+    target_image = np.zeros((target_height, target_width, image.shape[2]), dtype=np.float)
+    scale = min(target_width / cols, target_height / rows)
+    image = cv2.resize(image, None, fx=scale, fy=scale)
+
+    if image.ndim == 2:
+        image = np.expand_dims(image, axis=-1)
+    
+    target_image[:image.shape[0], :image.shape[1], :image.shape[2]] = image
+
+    return target_image, scale
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -159,7 +201,7 @@ def get_draw_font(draw_obj, text, max_height=None, max_width=None):
     ini_size = 8
 
     try:
-        font_name = 'DejaVuSansMono.ttf'
+        font_name = './fonts/DejaVuSansMono.ttf'
         draw_font = ImageFont.truetype(font_name, ini_size)
     except:
         font_name = 'arial.ttf'

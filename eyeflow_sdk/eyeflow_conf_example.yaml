@@ -43,6 +43,13 @@ file-service:
         local_folder: /opt/eyeflow/data/model-hist
         cloud_folder: model-hist
 
+    model-components:
+        local_folder: /opt/eyeflow/src/model-components
+        cloud_folder: model-components
+
+    flow-components:
+        local_folder: /opt/eyeflow/src/flow-components
+        cloud_folder: flow-components
 cloud:
     provider: azure
     account_url: https://store.blob.core.windows.net
@@ -51,5 +58,3 @@ cloud:
     resource-group: "resource-group"
 
 flow_folder: /opt/eyeflow/data/flow
-flow_components: /opt/eyeflow/src/flow_components
-dnn_components: /opt/eyeflow/src/dnn_components

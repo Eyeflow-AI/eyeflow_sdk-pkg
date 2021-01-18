@@ -75,9 +75,9 @@ def compute_resize_scale(image_shape, min_side, max_side):
         A resized image.
     """
     scale = max_side / max(image_shape[:2])
-    shorter_side = min(image_shape[:2])
-    if shorter_side * scale < min_side:
-        scale = min_side / shorter_side
+    # shorter_side = min(image_shape[:2])
+    # if shorter_side * scale < min_side:
+    #     scale = min_side / shorter_side
     
     return scale
 # ---------------------------------------------------------------------------------------------------------------------------------

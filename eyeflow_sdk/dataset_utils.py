@@ -51,7 +51,7 @@ class Dataset():
     """
     def __init__(self, dataset, db_config=None, cloud_parms=None):
         if dataset != slugify(dataset):
-            raise Exception("Invalid dataset name %s - Sugestion: %s" % (dataset, slugify(dataset)))
+            raise Exception(f"Invalid dataset name {dataset} - Sugestion: {slugify(dataset)}")
 
         self.id = None
         self.dataset_name = None
@@ -71,6 +71,11 @@ class Dataset():
             self.db_config = CONFIG["db-service"]
 
         self._cloud_parms = cloud_parms
+        self._file_ac = FileAccess(
+            storage="dataset",
+            resource_id=self.id,
+            cloud_parms=self._cloud_parms
+        )
 
         self.parms = {}
         self.examples = []
@@ -96,14 +101,14 @@ class Dataset():
             self.parms = db_mongo.dataset.find_one({"_id": ObjectId(self.id)})
 
             if self.parms is None:
-                raise Exception('Dataset not found: %s' % self.id)
+                raise Exception(f'Dataset not found: {self.id}')
 
             self.dataset_name = str(self.parms["name"])
         else:
             self.parms = db_mongo.dataset.find_one({"name": self.dataset_name})
 
             if self.parms is None:
-                raise Exception('Dataset not found: %s' % self.dataset_name)
+                raise Exception(f'Dataset not found: {self.dataset_name}')
 
             self.id = str(self.parms["_id"])
 
@@ -112,22 +117,37 @@ class Dataset():
             for exp in cursor:
                 self.examples.append(exp)
 
-        self.load_images_from_disk()
-        log.info("Load dataset from database %d examples" % len(self.examples))
+        log.info(f"Load dataset from database {len(self.examples)} examples")
 
 
     def load_images_from_disk(self, origin="cloud"):
         """
         Load images from disk
         """
-        file_ac = FileAccess(storage="dataset", resource_id=self.id, cloud_parms=self._cloud_parms)
         if self._cloud_parms is not None:
-            file_ac.sync_files(origin=origin)
+            self._file_ac.sync_files(origin=origin)
 
         for exp in self.examples:
-            with file_ac.open(exp["example"], 'rb') as fp:
-                img = fp.read()
-                self.images[exp["example"]] = img
+            with self._file_ac.open(exp["example"], 'rb') as fp:
+                self.images[exp["example"]] = fp.read()
+
+
+    def load_all_images(self):
+        """
+        Load images in memory
+        """
+        for exp in self.examples:
+            if exp["example"] in self.images:
+                continue
+
+            if self._file_ac.is_file(exp["example"]):
+                with self._file_ac.open(exp["example"], 'rb') as fp:
+                    self.images[exp["example"]] = fp.read()
+            else:
+                if self._cloud_parms is None:
+                    raise Exception('Image not found and cloud parms not set')
+
+                self.images[exp["example"]] = self._file_ac.load_cloud_file(exp["example"])
 
 
     def update_default_parms(self):
@@ -184,44 +204,54 @@ class Dataset():
         """
         Save images to disk
         """
-        file_ac = FileAccess(storage="dataset", resource_id=self.id, cloud_parms=self._cloud_parms)
+        self.load_all_images()
 
         for exp in self.examples:
-            if file_ac.is_file(exp["example"]):
-                file_ac.remove_file(exp["example"])
+            if self._file_ac.is_file(exp["example"]):
+                self._file_ac.remove_file(exp["example"])
 
-            with file_ac.open(exp["example"], 'wb') as fp:
+            with self._file_ac.open(exp["example"], 'wb') as fp:
                 fp.write(self.images[exp["example"]])
 
         if self._cloud_parms is not None:
-            file_ac.sync_files(origin=origin)
+            self._file_ac.sync_files(origin=origin)
 
 
-    def get_example_img(self, example_id):
+    def get_example_img(self, example_img):
         """
         Returns an image in opencv format
         """
-        if example_id not in self.images:
-            raise Exception(f'Example {example_id} not found')
+        def load_file_from_cloud(filename):
+            if self._cloud_parms is None:
+                raise Exception('Cloud parms not set')
 
-        return cv2.imdecode(np.frombuffer(self.images[example_id], dtype=np.uint8), cv2.IMREAD_COLOR)
+            return self._file_ac.load_cloud_file(filename)
 
 
-    def get_train_subsets(self):
+        if example_img not in self.images:
+            self.images[example_img] = load_file_from_cloud(example_img)
+
+        return cv2.imdecode(np.frombuffer(self.images[example_img], dtype=np.uint8), cv2.IMREAD_COLOR)
+
+
+    def get_train_subsets(self, shuffle=True):
         """
         Partitioning of dataset in 3 groups: train, validation and test
         """
         if not self.parms:
             raise Exception('Must load or import dataset first')
 
-        train_dataset = Dataset(self.id)
+        train_dataset = Dataset(self.id, db_config=self.db_config, cloud_parms=self._cloud_parms)
         train_dataset.parms = copy.deepcopy(self.parms)
-        val_dataset = Dataset(self.id)
+
+        val_dataset = Dataset(self.id, db_config=self.db_config, cloud_parms=self._cloud_parms)
         val_dataset.parms = copy.deepcopy(self.parms)
-        test_dataset = Dataset(self.id)
+
+        test_dataset = Dataset(self.id, db_config=self.db_config, cloud_parms=self._cloud_parms)
         test_dataset.parms = copy.deepcopy(self.parms)
 
-        random.shuffle(self.examples)
+        if shuffle:
+            random.shuffle(self.examples)
 
         val_size = int(len(self.examples) * self.parms["network_parms"]["val_size"])
         if val_size < 1:
@@ -238,32 +268,7 @@ class Dataset():
         val_dataset.examples = copy.deepcopy(self.examples[test_size:test_size + val_size])
         test_dataset.examples = copy.deepcopy(self.examples[:test_size])
 
-        def copy_imgs(dataset, img_list):
-            for exp in dataset.examples:
-                dataset.images[exp["example"]] = copy.deepcopy(img_list[exp["example"]])
-
-        copy_imgs(train_dataset, self.images)
-        copy_imgs(val_dataset, self.images)
-        copy_imgs(test_dataset, self.images)
-
         return train_dataset, val_dataset, test_dataset
-
-
-    # @staticmethod
-    # def export_to_pb(parms, examples, images, filename):
-    #     """
-    #     Export dataset to file in protobuf format
-    #     """
-    #     dsetfile = DsetFile()
-    #     dsetfile.parms = json.dumps(parms, ensure_ascii=False, default=default_json_converter)
-    #     dsetfile.examples.extend([json.dumps(exp, ensure_ascii=False, default=default_json_converter) for exp in examples])
-    #     for img in images:
-    #         dsetfile.images[img] = images[img]
-
-    #     file_ac = FileAccess(storage="export")
-
-    #     with file_ac.open(filename, 'wb') as fp:
-    #         fp.write(dsetfile.SerializeToString())
 
 
     @staticmethod
@@ -277,7 +282,7 @@ class Dataset():
             example_list.append(json.dumps(exp, ensure_ascii=False, default=default_json_converter))
             image_list.append(images[exp["example"]])
 
-        dt = h5py.special_dtype(vlen=str) 
+        dt = h5py.special_dtype(vlen=str)
         example_list = np.array(example_list, dtype=dt)
         image_list = np.array(image_list)
 
@@ -298,6 +303,8 @@ class Dataset():
         base_file_name = self.id + ".dset"
         diff_file_name = self.id + '_diff.dset'
         data_filename = self.id + ".json"
+
+        self.load_all_images()
 
         def save_export_data(filename, diff_examples):
             export_data = {
@@ -359,7 +366,7 @@ class Dataset():
         """
         def convert_date(str_date):
             return dateutil.parser.isoparse(str_date).replace(tzinfo=None)
-            
+
 
         file_ac = FileAccess(storage="export")
 

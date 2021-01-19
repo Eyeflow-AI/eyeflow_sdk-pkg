@@ -54,11 +54,12 @@ class FileAccess():
             if os.path.isfile(os.path.join(folder, filename)) \
                and filename.startswith(prefix) and filename.endswith(sufix):
                 file_stat = os.stat(os.path.join(folder, filename))
-                file_info = {"filename": filename,
-                             "creation_date": datetime.datetime.fromtimestamp(file_stat.st_mtime, datetime.timezone.utc),
-                             "modified_date": datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(folder, filename)), datetime.timezone.utc),
-                             "file_size": file_stat.st_size
-                            }
+                file_info = {
+                    "filename": filename,
+                    "creation_date": datetime.datetime.fromtimestamp(file_stat.st_mtime, datetime.timezone.utc),
+                    "modified_date": datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(folder, filename)), datetime.timezone.utc),
+                    "file_size": file_stat.st_size
+                }
 
                 file_list.append(file_info)
             elif os.path.isdir(os.path.join(folder, filename)):
@@ -214,6 +215,22 @@ class FileAccess():
 
     def get_local_folder(self):
         return self._local_folder
+
+
+    def load_cloud_file(self, filename):
+        """
+        Read a file from cloud and return data
+        """
+        if self._cloud_obj is None:
+            raise Exception("Cloud provider not defined")
+
+        file_data = self._cloud_obj.download_file(
+            folder=self._cloud_folder,
+            resource_id=self.resource_id,
+            filename=filename
+        )
+
+        return file_data
 
 
     def open(self, filename, *args, **kwargs):

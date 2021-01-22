@@ -1,0 +1,38 @@
+{
+    "name": "dataset_types",
+    "dataset_types":[
+        {
+            "type": "classification",
+            "description": "Classification",
+            "default_classes": []
+        },
+        {
+            "type": "object_detection",
+            "description": "Object Detection",
+            "default_classes": []
+        },
+        {
+            "type": "dim_measure",
+            "description": "Dimension Measure",
+            "default_classes": [
+            {
+                "name": "point_a",
+                "color": "#008000",
+                "index": 0,
+                "label": "Ponto A"
+            },
+            {
+                "name": "point_b",
+                "color": "#0000FF",
+                "index": 1,
+                "label": "Ponto B"
+            }
+            ]
+        },
+        {
+            "type": "anomaly_detection",
+            "description": "Anomaly Detection",
+            "default_classes": []
+        }
+    ]
+}

@@ -91,6 +91,61 @@ class Dataset():
         return client[db_config["db_name"]]
 
 
+    @staticmethod
+    def get_dataset_default_parms():
+        """
+        Returns default dataset parms
+        """
+        filename = os.path.join(os.path.dirname(__file__), 'dataset_default_parms.json')
+        with open(filename, 'r', newline='', encoding='utf8') as fp:
+            default_parms = json.load(fp)
+
+        return default_parms
+
+
+    @staticmethod
+    def get_network_default_parms():
+        """
+        Returns default network parms
+        """
+        filename = os.path.join(os.path.dirname(__file__), 'network_default_parms.json')
+        with open(filename, 'r', newline='', encoding='utf8') as fp:
+            default_parms = json.load(fp)
+
+        return default_parms
+
+
+    @staticmethod
+    def get_dataset_types():
+        """
+        Returns dataset types
+        """
+        filename = os.path.join(os.path.dirname(__file__), 'dataset_types.json')
+        with open(filename, 'r', newline='', encoding='utf8') as fp:
+            default_parms = json.load(fp)
+
+        return default_parms
+
+
+    def update_default_parms(self):
+        """
+        Performs an update in parms with all default parms read from database
+        """
+        network_parms = {}
+        dataset_network_parms = self.parms.get("network_parms", network_parms)
+        network_default_parms = Dataset.get_network_default_parms()
+        if network_default_parms is not None:
+            network_parms.update(network_default_parms["network_parms"][self.parms["info"]["type"]])
+
+        dataset_default_parms = Dataset.get_dataset_default_parms()
+        if dataset_default_parms is not None:
+            network_parms.update(dataset_default_parms["network_parms"][self.parms["info"]["type"]])
+
+        network_parms.update(dataset_network_parms)
+
+        self.parms.update({"network_parms": network_parms})
+
+
     def load_data(self):
         """
         Load dataset data from database
@@ -148,27 +203,6 @@ class Dataset():
                     raise Exception('Image not found and cloud parms not set')
 
                 self.images[exp["example"]] = self._file_ac.load_cloud_file(exp["example"])
-
-
-    def update_default_parms(self):
-        """
-        Performs an update in parms with all default parms read from database
-        """
-        db_mongo = Dataset.get_mongo_database(self.db_config)
-
-        network_parms = {}
-        dataset_network_parms = self.parms.get("network_parms", network_parms)
-        network_default_parms = db_mongo.parms.find_one({"name": "network_default_parms"})
-        if network_default_parms is not None:
-            network_parms.update(network_default_parms["network_parms"][self.parms["info"]["type"]])
-
-        dataset_default_parms = db_mongo.parms.find_one({"name": "dataset_default_parms"})
-        if dataset_default_parms is not None:
-            network_parms.update(dataset_default_parms["network_parms"][self.parms["info"]["type"]])
-
-        network_parms.update(dataset_network_parms)
-
-        self.parms.update({"network_parms": network_parms})
 
 
     def save_data_db(self):

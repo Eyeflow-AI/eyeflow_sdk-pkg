@@ -1,0 +1,47 @@
+{
+    "name": "dataset_default_parms",
+    "network_parms": {
+        "classification": {
+            "epochs": 5,
+            "steps_per_epoch": 100,
+            "input_shape": {
+                "max_side": 80,
+                "min_side": 50,
+                "channels": 1
+            }
+        },
+        "object_detection": {
+            "epochs": 10,
+            "steps_per_epoch": 200,
+            "confidence_threshold": 0.6
+        },
+        "dim_measure": {
+            "epochs": 10,
+            "steps_per_epoch": 200,
+            "confidence_threshold": 0.6
+        },
+        "anomaly_detection": {
+            "epochs": 20,
+            "gan_steps_per_epoch": 500,
+            "anodet_steps_per_epoch": 200,
+            "batch_size": 64,
+            "val_size": 0.1,
+            "test_size": 0.1,
+            "learning_rate": 0.0002,
+            "beta1": 0.5,
+            "sample_num": 64,
+            "generator_dim": 32,
+            "discriminator_dim": 32,
+            "input_shape": {
+                "height": 192,
+                "width": 192,
+                "channels": 1
+            },
+            "generator_input_shape": {
+                "height": 192,
+                "width": 192,
+                "channels": 1
+            }
+        }
+    }
+}

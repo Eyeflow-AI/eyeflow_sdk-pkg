@@ -26,20 +26,8 @@ def test_export():
 
 def test_default_parms():
     dataset_id = "600a260286aa5b0058397154"
-    dst_credentials_silicon = {
-        "db-service": {
-            "db_url": "mongodb+srv://app_user-dev:JcP9vJQgzpTKJvad@eyeflow-dev.9bm6s.mongodb.net/5fcd69ce139188003f9eaa83?retryWrites=true&w=majority",
-            "db_name": "5fcd69ce139188003f9eaa83"
-        },
-        "cloud": {
-            "provider": "azure",
-            "account_url": "https://5fcd69ce139188003f9eaa83.blob.core.windows.net",
-            "account_key": "owbO3pscQ4B8LifggwSTLOUETl2hF8i6pBlzq8PMdxc/Zk3uVIEpZBhVMHFhShtxlegQcz8V+pNfALbcpUDm3Q==",
-            "connection_string": "DefaultEndpointsProtocol=https;AccountName=5fcd69ce139188003f9eaa83;AccountKey=owbO3pscQ4B8LifggwSTLOUETl2hF8i6pBlzq8PMdxc/Zk3uVIEpZBhVMHFhShtxlegQcz8V+pNfALbcpUDm3Q==;EndpointSuffix=core.windows.net"
-        }
-    }
 
-    dataset = Dataset(dataset_id, db_config=dst_credentials_silicon["db-service"], cloud_parms=dst_credentials_silicon["cloud"])
+    dataset = Dataset(dataset_id, db_config=CONFIG["db-service"], cloud_parms=CONFIG["cloud"])
     dataset.load_data()
     dataset.update_default_parms()
     component = dataset.parms["network_parms"]["dnn_parms"]["component"]

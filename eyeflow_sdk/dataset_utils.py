@@ -265,7 +265,8 @@ class Dataset():
         if example_img not in self.images:
             self.images[example_img] = load_file_from_cloud(example_img)
 
-        return cv2.imdecode(np.frombuffer(self.images[example_img], dtype=np.uint8), cv2.IMREAD_COLOR)
+        # by default all images are in RGB
+        return cv2.cvtColor(cv2.imdecode(np.frombuffer(self.images[example_img], dtype=np.uint8), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
 
 
     def get_train_subsets(self, shuffle=True):

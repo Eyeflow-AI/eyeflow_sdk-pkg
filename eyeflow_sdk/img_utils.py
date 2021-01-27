@@ -63,38 +63,37 @@ def preprocess_image(image, mode):
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 
-def compute_resize_scale(image_shape, min_side, max_side):
-    """ Compute scale to resize an image such that the size is constrained to min_side and max_side.
+def resize_image(image, target_height, target_width):
+    """ Resize an image. Don't preserve image aspect ratio.
 
     Args
-        image_shape: The original image shape.
-        min_side: If after resizing the image's shorter side is below min_side, resize until the shorter side is equal to min_side.
-        max_side: The image's max side will be equal to max_side after resizing.
+        target_height: Target height to resize
+        target_width: Target width to resize
 
     Returns
         A resized image.
     """
-    scale = max_side / max(image_shape[:2])
-    # shorter_side = min(image_shape[:2])
-    # if shorter_side * scale < min_side:
-    #     scale = min_side / shorter_side
-    
-    return scale
+
+    image = cv2.resize(image, (target_width, target_height))
+    if image.ndim == 2:
+        image = np.expand_dims(image, axis=-1)
+
+    return image
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 
-def resize_image(image, min_side, max_side):
-    """ Resize an image such that the size is constrained to min_side and max_side.
+def resize_image_scale(image, max_side):
+    """ Resize an image such that the larger side equals max_side.
+        Preserve image aspect ratio.
 
     Args
-        min_side: If after resizing the image's shorter side is below min_side, resize until the shorter side is equal to min_side.
         max_side: The image's max side will be equal to max_side after resizing.
 
     Returns
         A resized image.
     """
 
-    scale = compute_resize_scale(image.shape, min_side, max_side)
+    scale = max_side / max(image.shape[:2])
 
     # resize the image with the computed scale
     image = cv2.resize(image, None, fx=scale, fy=scale)
@@ -122,7 +121,7 @@ def resize_image_pad(image, target_height, target_width):
 
     if image.ndim == 2:
         image = np.expand_dims(image, axis=-1)
-    
+
     target_image[:image.shape[0], :image.shape[1], :image.shape[2]] = image
 
     return target_image, scale
@@ -175,7 +174,8 @@ def convert_data_type(image, to='uint8'):
 
 def save_images_batch(images, image_path):
 
-    image = np.squeeze(merge_images(images))
+    image = np.squeeze(merge_images(images)).astype(np.uint8)
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     cv2.imwrite(image_path, image)
 #----------------------------------------------------------------------------------------------------------------------------------
 

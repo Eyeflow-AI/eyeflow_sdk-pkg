@@ -12,6 +12,7 @@ import datetime
 import random
 from bson import ObjectId
 import cv2
+import importlib
 
 from eyeflow_sdk.file_access import FileAccess
 from eyeflow_sdk.log_obj import log
@@ -37,30 +38,52 @@ def upload_extracts(dataset_id, cloud_parms):
     """
 
     log.info(f"Upload extracts dataset: {dataset_id}")
+    comp_lib = importlib.import_module(f'eyeflow_sdk.cloud_store.{cloud_parms["provider"]}')
+    cloud_obj = comp_lib.Connector(**cloud_parms)
 
     def save_extract_list(extract_path):
+        extract_files = {
+            "files_data": []
+        }
 
-        date_list = []
+        files_list = []
         for filename in os.listdir(extract_path):
             if filename.endswith('_data.json'):
                 try:
                     filepath = os.path.join(extract_path, filename)
                     with open(filepath, 'r') as json_file:
                         data = json.load(json_file)
-                        if 'frame_time' in data:
-                            frame_time = data['frame_time']
+                        extract_files["files_data"].append(data)
+                        if 'date' in data:
+                            file_time = data['date']
                         else:
-                            frame_time = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
-                        date_list.append([filename, frame_time])
+                            file_time = datetime.datetime.fromtimestamp(os.path.getmtime(filepath)).strftime("%Y-%m-%d %H:%M:%S.%f")
+                        files_list.append([filename, file_time])
                 except:
                     pass
 
-        files_list = sorted(date_list, key=lambda x: x[1], reverse=True)
+        cloud_files = cloud_obj.list_files_info(folder="extract", resource_id=dataset_id)
+        for cloud_file in cloud_files:
+            if cloud_file["filename"].endswith('_data.json'):
+                try:
+                    data = json.loads(cloud_obj.download_file(folder="extract", resource_id=dataset_id, filename=cloud_file["filename"]))
+                    extract_files["files_data"].append(data)
+                    if 'date' in data:
+                        file_time = data['date']
+                    else:
+                        file_time = cloud_file["creation_date"].strftime("%Y-%m-%d %H:%M:%S.%f")
+                    files_list.append([filename, file_time])
+                except:
+                    pass
+
+        extract_files["extract_list"] = sorted(files_list, key=lambda x: x[1], reverse=True)
+
         with open(os.path.join(extract_path, 'extract_files.json'), 'w', newline='', encoding='utf8') as file_p:
-            json.dump({"extract_list": files_list}, file_p, ensure_ascii=False, indent=2, default=str)
+            json.dump(extract_files, file_p, ensure_ascii=False, default=str)
 
     file_ac = FileAccess(storage="extract", resource_id=dataset_id, cloud_parms=cloud_parms)
-    clear_log(file_ac.get_local_folder())
+    # clear_log(file_ac.get_local_folder())
+    file_ac.purge_files(max_files=MAX_EXTRACT_FILES)
     save_extract_list(file_ac.get_local_folder())
     file_ac.sync_files(origin="local")
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -89,6 +112,9 @@ class VideoLog(object):
 
                 if 'frame_time' in image[2]:
                     img_data['frame_time'] = image[2]['frame_time']
+
+                if 'video_file' in image[2]:
+                    img_data['video_file'] = image[2]['video_file']
 
                 with open(os.path.join(self._dest_path, obj_id + '_data.json'), 'w', newline='', encoding='utf8') as file_p:
                     json.dump(img_data, file_p, ensure_ascii=False, indent=2, default=str)

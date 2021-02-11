@@ -175,7 +175,6 @@ def convert_data_type(image, to='uint8'):
 def save_images_batch(images, image_path):
 
     image = np.squeeze(merge_images(images)).astype(np.uint8)
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     cv2.imwrite(image_path, image)
 #----------------------------------------------------------------------------------------------------------------------------------
 

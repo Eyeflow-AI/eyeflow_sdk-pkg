@@ -10,15 +10,20 @@ import os
 import json
 import datetime
 import random
-from bson import ObjectId
 import cv2
 import importlib
 
+from pymongo import MongoClient
+from bson import ObjectId
+
 from eyeflow_sdk.file_access import FileAccess
+from eyeflow_sdk.img_utils import resize_image_scale
 from eyeflow_sdk.log_obj import log
 #----------------------------------------------------------------------------------------------------------------------------------
 
 MAX_EXTRACT_FILES = 800
+THUMB_SIZE = 128
+
 
 def clear_log(extract_path, max_files=MAX_EXTRACT_FILES):
     files_list = os.listdir(extract_path)
@@ -32,7 +37,7 @@ def clear_log(extract_path, max_files=MAX_EXTRACT_FILES):
                 pass
 #----------------------------------------------------------------------------------------------------------------------------------
 
-def upload_extracts(dataset_id, cloud_parms):
+def upload_extracts(dataset_id, db_config, cloud_parms):
     """
     Upload extracts of process to cloud
     """
@@ -41,7 +46,23 @@ def upload_extracts(dataset_id, cloud_parms):
     comp_lib = importlib.import_module(f'eyeflow_sdk.cloud_store.{cloud_parms["provider"]}')
     cloud_obj = comp_lib.Connector(**cloud_parms)
 
+
+    def generate_extract_thumbs(extract_path):
+        """ Generate thumb image for all image files in extract folder
+        """
+        thumbs_list = [fname for fname in os.listdir(extract_path) if fname.endswith('_thumb.jpg')]
+        for filename in os.listdir(extract_path):
+            if filename.endswith('.jpg') and filename not in thumbs_list:
+                file_thumb = filename[:-4] + "_thumb.jpg"
+                img = cv2.imread(os.path.join(extract_path, filename))
+                if max(img.shape) > THUMB_SIZE:
+                    img, _ = resize_image_scale(img, THUMB_SIZE)
+                cv2.imwrite(os.path.join(extract_path, file_thumb), img)
+
+
     def save_extract_list(extract_path):
+        """ Save a json with info about all files in extract folder
+        """
         extract_files = {
             "files_data": []
         }
@@ -78,12 +99,24 @@ def upload_extracts(dataset_id, cloud_parms):
 
         extract_files["extract_list"] = sorted(files_list, key=lambda x: x[1], reverse=True)
 
+        # save extract info in storage
         with open(os.path.join(extract_path, 'extract_files.json'), 'w', newline='', encoding='utf8') as file_p:
             json.dump(extract_files, file_p, ensure_ascii=False, default=str)
+
+        # save extract info in database
+        client = MongoClient(db_config["db_url"])
+        db_mongo = client[db_config["db_name"]]
+
+        db_mongo.extract.delete_one({"_id": dataset_id})
+
+        extract_files["_id"] = ObjectId(dataset_id)
+        db_mongo.extract.insert_one(extract_files)
+
 
     file_ac = FileAccess(storage="extract", resource_id=dataset_id, cloud_parms=cloud_parms)
     # clear_log(file_ac.get_local_folder())
     file_ac.purge_files(max_files=MAX_EXTRACT_FILES)
+    generate_extract_thumbs(file_ac.get_local_folder())
     save_extract_list(file_ac.get_local_folder())
     file_ac.sync_files(origin="local")
 #----------------------------------------------------------------------------------------------------------------------------------

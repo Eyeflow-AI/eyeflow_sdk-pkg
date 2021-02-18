@@ -96,7 +96,7 @@ def resize_image_scale(image, max_side):
     scale = max_side / max(image.shape[:2])
 
     # resize the image with the computed scale
-    image = cv2.resize(image, None, fx=scale, fy=scale)
+    image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
     if image.ndim == 2:
         image = np.expand_dims(image, axis=-1)
 

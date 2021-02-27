@@ -107,7 +107,7 @@ def upload_extracts(dataset_id, db_config, cloud_parms):
         client = MongoClient(db_config["db_url"])
         db_mongo = client[db_config["db_name"]]
 
-        db_mongo.extract.delete_one({"_id": dataset_id})
+        db_mongo.extract.delete_one({"_id": ObjectId(dataset_id)})
 
         extract_files["_id"] = ObjectId(dataset_id)
         db_mongo.extract.insert_one(extract_files)

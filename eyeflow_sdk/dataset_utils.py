@@ -329,15 +329,20 @@ class Dataset():
             dsetfile.create_dataset('parms', data=json.dumps(parms, ensure_ascii=False, default=default_json_converter), dtype=dt)
 
 
-    def export_dataset(self):
+    def export_dataset(self, filename=None):
         """
         Export dataset to folder adding only differences if a base export exists
         """
 
         file_ac = FileAccess(storage="export", resource_id=self.id, cloud_parms=self._cloud_parms)
-        base_file_name = self.id + ".dset"
-        diff_file_name = self.id + '_diff.dset'
-        data_filename = self.id + ".json"
+        if filename:
+            base_file_name = filename + ".dset"
+            diff_file_name = filename + '_diff.dset'
+            data_filename = filename + ".json"
+        else:
+            base_file_name = self.id + ".dset"
+            diff_file_name = self.id + '_diff.dset'
+            data_filename = self.id + ".json"
 
         self.load_all_images()
 
@@ -482,43 +487,41 @@ class Dataset():
         return parms, examples, images
 
 
-    def import_dataset(self):
+    def import_dataset(self, filename=None):
         """
         Import dataset from folder with base and diffs
         """
 
         file_list = []
-        if self.id:
+        if filename:
+            file_list.append(filename + ".json")
+            file_list.append(filename + ".dset")
+        elif self.id:
+            file_list.append(self.id + ".json")
             file_list.append(self.id + ".dset")
             file_list.append(self.id + '_diff.dset')
-            file_list.append(self.id + ".json")
-
-        if self.dataset_name:
+        elif self.dataset_name:
+            file_list.append(self.dataset_name + ".json")
             file_list.append(self.dataset_name + ".dset")
             file_list.append(self.dataset_name + '_diff.dset')
-            file_list.append(self.dataset_name + ".json")
 
         file_ac = FileAccess(storage="export", resource_id=self.id, cloud_parms=self._cloud_parms)
 
         if self._cloud_parms is not None:
             file_ac.sync_files(file_list=file_list, origin="cloud")
 
-        if self.id and file_ac.is_file(f"{self.id}.json"):
-            base_file_name = self.id + ".dset"
-            diff_file_name = self.id + '_diff.dset'
-            data_filename = self.id + ".json"
-        elif self.dataset_name and file_ac.is_file(f"{self.dataset_name}.json"):
-            base_file_name = self.dataset_name + ".dset"
-            diff_file_name = self.dataset_name + '_diff.dset'
-            data_filename = self.dataset_name + ".json"
+        if not file_ac.is_file(file_list[0]) or not file_ac.is_file(file_list[1]):
+            raise Exception(f'Export file {file_list[0]} or {file_list[1]} does not exist')
+
+        data_filename = file_list[0]
+        base_file_name = file_list[1]
+        if len(file_list) == 3:
+            diff_file_name = file_list[2]
         else:
-            raise Exception(f'Export file {self.dataset_name}.json or {self.id}.json does not exist')
+            diff_file_name = None
 
         with file_ac.open(data_filename, 'r', newline='', encoding='utf8') as fp:
             export_data = json.load(fp)
-
-        if not file_ac.is_file(base_file_name):
-            raise Exception(f"Base export file {base_file_name} does not exist")
 
         if export_data.get("export_version") == '1':
             self.parms, self.examples, self.images = Dataset.import_from_pb(base_file_name)
@@ -530,7 +533,7 @@ class Dataset():
         self.dataset_name = str(self.parms["name"])
         self.id = str(self.parms["_id"])
 
-        if file_ac.is_file(diff_file_name) and export_data.get("diff_examples", 0) > 0:
+        if diff_file_name and file_ac.is_file(diff_file_name) and export_data.get("diff_examples", 0) > 0:
             if export_data.get("export_version") == '1':
                 self.parms, diff_examples, diff_images = Dataset.import_from_pb(diff_file_name)
             elif export_data.get("export_version") == '2':

@@ -307,7 +307,7 @@ class Dataset():
 
 
     @staticmethod
-    def export_to_hdf5(parms, examples, images, filename):
+    def export_to_hdf5(parms, examples, images, filename, dataset_id):
         """
         Export dataset to file in hdf5 format
         """
@@ -321,7 +321,7 @@ class Dataset():
         example_list = np.array(example_list, dtype=dt)
         image_list = np.array(image_list)
 
-        file_ac = FileAccess(storage="export")
+        file_ac = FileAccess(storage="export", resource_id=dataset_id)
         export_path = file_ac.get_local_folder()
         with h5py.File(os.path.join(export_path, filename), 'w') as dsetfile:
             dsetfile.create_dataset('examples', data=example_list, compression="gzip", compression_opts=9)
@@ -334,7 +334,7 @@ class Dataset():
         Export dataset to folder adding only differences if a base export exists
         """
 
-        file_ac = FileAccess(storage="export", cloud_parms=self._cloud_parms)
+        file_ac = FileAccess(storage="export", resource_id=self.id, cloud_parms=self._cloud_parms)
         base_file_name = self.id + ".dset"
         diff_file_name = self.id + '_diff.dset'
         data_filename = self.id + ".json"
@@ -361,15 +361,17 @@ class Dataset():
 
         if not file_ac.is_file(base_file_name):
             # Dataset.export_to_file(base_file_name)
-            Dataset.export_to_hdf5(self.parms, self.examples, self.images, base_file_name)
+            Dataset.export_to_hdf5(self.parms, self.examples, self.images, base_file_name, self.id)
             save_export_data(data_filename, diff_examples=0)
             if self._cloud_parms is not None:
-                file_ac.sync_files(file_list=[base_file_name, data_filename],
-                                   origin="local")
+                file_ac.sync_files(
+                    file_list=[base_file_name, data_filename],
+                    origin="local"
+                )
             log.info("Dataset exported to file %d examples" % len(self.examples))
             return
 
-        base_parms, base_examples = Dataset.import_from_hdf5(base_file_name, retrieve_images=False)
+        base_parms, base_examples = Dataset.import_from_hdf5(base_file_name, self.id, retrieve_images=False)
 
         base_examples_list = {}
         for exp in base_examples:
@@ -385,11 +387,13 @@ class Dataset():
                 export_examples.append(exp)
 
         if export_examples or (self.parms != base_parms):
-            Dataset.export_to_hdf5(self.parms, export_examples, export_images, diff_file_name)
+            Dataset.export_to_hdf5(self.parms, export_examples, export_images, diff_file_name, self.id)
             save_export_data(data_filename, diff_examples=len(export_examples))
             if self._cloud_parms is not None:
-                file_ac.sync_files(file_list=[base_file_name, diff_file_name, data_filename],
-                                   origin="local")
+                file_ac.sync_files(
+                    file_list=[base_file_name, diff_file_name, data_filename],
+                    origin="local"
+                )
 
         log.info("Dataset exported to file %d examples" % len(self.examples))
 
@@ -437,14 +441,14 @@ class Dataset():
 
 
     @staticmethod
-    def import_from_hdf5(filename, retrieve_images=True):
+    def import_from_hdf5(filename, dataset_id, retrieve_images=True):
         """
         Import dataset from file in protobuf format
         """
         def convert_date(str_date):
             return dateutil.parser.isoparse(str_date).replace(tzinfo=None)
 
-        file_ac = FileAccess(storage="export")
+        file_ac = FileAccess(storage="export", resource_id=dataset_id)
         export_path = file_ac.get_local_folder()
         with h5py.File(os.path.join(export_path, filename), 'r') as dsetfile:
             example_list = dsetfile['examples'][()].tolist()
@@ -494,7 +498,7 @@ class Dataset():
             file_list.append(self.dataset_name + '_diff.dset')
             file_list.append(self.dataset_name + ".json")
 
-        file_ac = FileAccess(storage="export", cloud_parms=self._cloud_parms)
+        file_ac = FileAccess(storage="export", resource_id=self.id, cloud_parms=self._cloud_parms)
 
         if self._cloud_parms is not None:
             file_ac.sync_files(file_list=file_list, origin="cloud")
@@ -519,7 +523,7 @@ class Dataset():
         if export_data.get("export_version") == '1':
             self.parms, self.examples, self.images = Dataset.import_from_pb(base_file_name)
         elif export_data.get("export_version") == '2':
-            self.parms, self.examples, self.images = Dataset.import_from_hdf5(base_file_name)
+            self.parms, self.examples, self.images = Dataset.import_from_hdf5(base_file_name, self.id)
         else:
             raise Exception(f'Unknown export version: {export_data.get("export_version")}')
 
@@ -530,7 +534,7 @@ class Dataset():
             if export_data.get("export_version") == '1':
                 self.parms, diff_examples, diff_images = Dataset.import_from_pb(diff_file_name)
             elif export_data.get("export_version") == '2':
-                self.parms, diff_examples, diff_images = Dataset.import_from_hdf5(diff_file_name)
+                self.parms, diff_examples, diff_images = Dataset.import_from_hdf5(diff_file_name, self.id)
             else:
                 raise Exception(f'Unknown export version: {export_data.get("export_version")}')
 

@@ -63,41 +63,44 @@ def upload_extracts(dataset_id, db_config, cloud_parms):
     def save_extract_list(extract_path):
         """ Save a json with info about all files in extract folder
         """
-        extract_files = {
-            "files_data": []
-        }
-
+        files_data = []
         files_list = []
+        files_time = []
         for filename in os.listdir(extract_path):
             if filename.endswith('_data.json'):
                 try:
                     filepath = os.path.join(extract_path, filename)
                     with open(filepath, 'r') as json_file:
                         data = json.load(json_file)
-                        extract_files["files_data"].append(data)
+                        files_data.append(data)
                         if 'date' in data:
                             file_time = data['date']
                         else:
                             file_time = datetime.datetime.fromtimestamp(os.path.getmtime(filepath)).strftime("%Y-%m-%d %H:%M:%S.%f")
-                        files_list.append([filename, file_time])
+                        files_list.append(filename)
+                        files_time.append(file_time)
                 except:
                     pass
 
         cloud_files = cloud_obj.list_files_info(folder="extract", resource_id=dataset_id)
         for cloud_file in cloud_files:
-            if cloud_file["filename"].endswith('_data.json'):
+            if cloud_file["filename"].endswith('_data.json') and cloud_file["filename"] not in files_list:
                 try:
                     data = json.loads(cloud_obj.download_file(folder="extract", resource_id=dataset_id, filename=cloud_file["filename"]))
-                    extract_files["files_data"].append(data)
+                    files_data.append(data)
                     if 'date' in data:
                         file_time = data['date']
                     else:
                         file_time = cloud_file["creation_date"].strftime("%Y-%m-%d %H:%M:%S.%f")
-                    files_list.append([filename, file_time])
+                    files_list.append(filename)
+                    files_time.append(file_time)
                 except:
                     pass
 
-        extract_files["extract_list"] = sorted(files_list, key=lambda x: x[1], reverse=True)
+        extract_files = {
+            "files_data": files_data,
+            "extract_list": sorted(zip(files_list, files_time), key=lambda x: x[1], reverse=True)
+        }
 
         # save extract info in storage
         with open(os.path.join(extract_path, 'extract_files.json'), 'w', newline='', encoding='utf8') as file_p:

@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-message DsetFile {
-  string parms = 1;
-  repeated string examples = 2;
-  map<string, bytes> images = 3;
-}
-

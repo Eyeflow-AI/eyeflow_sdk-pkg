@@ -12,15 +12,22 @@ from dataset_utils import Dataset
 
 def test_export():
     export_date = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    script_parms = {
+        "dataset_id": "5f2317bea6dacd7984e5baf5",
+        "filename": f"area_treta_externa-{export_date}.dset"
+    }
 
-    dset1 = Dataset(script_parms["dataset_id"], db_config=script_parms["db-service"], cloud_parms=script_parms["cloud"])
+    dset1 = Dataset(script_parms["dataset_id"], db_config=CONFIG["db-service"], cloud_parms=CONFIG["cloud"])
     dset1.load_data()
     dset1.export_dataset(script_parms["filename"])
 
-    dset2 = Dataset(script_parms["dataset_id"], db_config=script_parms["db-service"], cloud_parms=script_parms["cloud"])
+    dset2 = Dataset(script_parms["dataset_id"], db_config=CONFIG["db-service"], cloud_parms=CONFIG["cloud"])
     dset2.import_dataset(script_parms["filename"])
+    dset2.save_data_db()
 
-    assert(dset1.parms == dset2.parms)
+    assert(dset1.parms["_id"] == dset2.parms["_id"])
+    assert(dset1.parms["classes"] == dset2.parms["classes"])
+    assert(dset1.parms["network_parms"] == dset2.parms["network_parms"])
     assert(dset1.examples == dset2.examples)
 #----------------------------------------------------------------------------------------------------------------------------------
 

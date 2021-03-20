@@ -211,16 +211,16 @@ class Dataset():
         db_mongo = Dataset.get_mongo_database(self.db_config)
 
         dataset_collection = db_mongo.dataset
-        dataset_collection.delete_many({"name": self.parms['name']})
-
-        self.parms["info"]['modified_date'] = datetime.datetime.now()
         self.parms["_id"] = ObjectId(self.id)
+        self.parms["info"]["package"] = ObjectId(self.parms["info"]["package"])
+        self.parms["info"]['creation_date'] = datetime.datetime.now()
+        self.parms["info"]['modified_date'] = datetime.datetime.now()
 
         dataset_collection.delete_many({"_id": self.parms['_id']})
         dataset_collection.insert_one(self.parms)
 
         example_collection = db_mongo.example
-        example_collection.delete_many({"dataset": self.parms['name']})
+        # example_collection.delete_many({"dataset": self.parms['name']})
         example_collection.delete_many({"dataset_id": self.parms['_id']})
 
         for exp in self.examples:
@@ -335,10 +335,8 @@ class Dataset():
         """
 
         file_ac = FileAccess(storage="export", resource_id=self.id, cloud_parms=self._cloud_parms)
-        if filename:
-            base_file_name = filename + ".dset"
-        else:
-            base_file_name = self.id + ".dset"
+        if not filename:
+            filename = self.id + ".dset"
 
         self.load_all_images()
 
@@ -351,11 +349,11 @@ class Dataset():
             "images_list": list(self.images.keys())
         }
 
-        # Dataset.export_to_file(base_file_name)
-        Dataset.export_to_hdf5(export_data, self.parms, self.examples, self.images, base_file_name, self.id)
+        # Dataset.export_to_file(filename)
+        Dataset.export_to_hdf5(export_data, self.parms, self.examples, self.images, filename, self.id)
         if self._cloud_parms is not None:
             file_ac.sync_files(
-                file_list=[base_file_name],
+                file_list=[filename],
                 origin="local"
             )
         log.info(f"Dataset exported to file {len(self.examples)} examples")
@@ -410,22 +408,23 @@ class Dataset():
         Import dataset from folder with base and diffs
         """
 
-        if filename:
-            base_file_name = filename + ".dset"
-        elif self.id:
-            base_file_name = self.id + ".dset"
-        elif self.dataset_name:
-            base_file_name = self.dataset_name + ".dset"
+        if not filename:
+            if self.id:
+                filename = self.id + ".dset"
+            elif self.dataset_name:
+                filename = self.dataset_name + ".dset"
+            else:
+                raise Exception(f'Must define import filename')
 
         file_ac = FileAccess(storage="export", resource_id=self.id, cloud_parms=self._cloud_parms)
 
         if self._cloud_parms is not None:
-            file_ac.sync_files(file_list=[base_file_name], origin="cloud")
+            file_ac.sync_files(file_list=[filename], origin="cloud")
 
-        if not file_ac.is_file(base_file_name):
-            raise Exception(f'Export file {base_file_name} does not exist')
+        if not file_ac.is_file(filename):
+            raise Exception(f'Export file {filename} does not exist')
 
-        export_data, self.parms, self.examples, self.images = Dataset.import_from_hdf5(base_file_name, self.id)
+        export_data, self.parms, self.examples, self.images = Dataset.import_from_hdf5(filename, self.id)
 
         self.dataset_name = str(self.parms["name"])
         self.id = str(self.parms["_id"])

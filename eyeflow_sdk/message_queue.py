@@ -5,6 +5,7 @@ Class to operate message queue server/client
 Author: Alex Sobral de Freitas
 """
 
+import os
 import json
 import datetime
 import time
@@ -260,8 +261,14 @@ def publish_message(message, queue, topic='') -> None:
     queue: str - Name of the queue to publish the message
     topic: str - Topic to publish, leave blank to publish to a queue
     """
-    mq_parms = CONFIG["mq-service"]
-    mq_url = f"amqp://{mq_parms['user']}:{mq_parms['pass']}@{mq_parms['host']}:{mq_parms['port']}"
+    if "MQ_URL" in os.environ:
+        mq_url = os.environ["MQ_URL"]
+    elif "mq-service" in CONFIG:
+        mq_parms = CONFIG["mq-service"]
+        mq_url = f"amqp://{mq_parms['user']}:{mq_parms['pass']}@{mq_parms['host']}:{mq_parms['port']}"
+    else:
+        raise Exception('Need parms of connection os.environ["MQ_URL"] or CONFIG["mq-service"]')
+
     mq_connection = pika.BlockingConnection(pika.URLParameters(mq_url))
     mq_channel = mq_connection.channel()
 
@@ -286,8 +293,13 @@ def send_message(message, queue, topic='', timeout=5) -> Dict:
     timeout: int - Timeout in seconds
     """
 
-    mq_parms = CONFIG["mq-service"]
-    mq_url = f"amqp://{mq_parms['user']}:{mq_parms['pass']}@{mq_parms['host']}:{mq_parms['port']}"
+    if "MQ_URL" in os.environ:
+        mq_url = os.environ["MQ_URL"]
+    elif "mq-service" in CONFIG:
+        mq_parms = CONFIG["mq-service"]
+        mq_url = f"amqp://{mq_parms['user']}:{mq_parms['pass']}@{mq_parms['host']}:{mq_parms['port']}"
+    else:
+        raise Exception('Need parms of connection os.environ["MQ_URL"] or CONFIG["mq-service"]')
 
     mq_connection = pika.BlockingConnection(pika.URLParameters(mq_url))
     mq_channel = mq_connection.channel()

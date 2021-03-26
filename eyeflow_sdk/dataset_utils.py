@@ -378,16 +378,16 @@ class Dataset():
 
 
         parms = json.loads(parms)
-        parms["_id"] = ObjectId(parms["_id"])
+        parms["_id"] = ObjectId(dataset_id)
         parms["info"]["creation_date"] = convert_date(parms["info"].get("creation_date"))
         parms["info"]["modified_date"] = convert_date(parms["info"].get("modified_date"))
 
         examples = []
         for exp in example_list:
             exp = json.loads(exp)
-            exp["_id"] = ObjectId(exp["_id"])
+            exp["_id"] = ObjectId()
             exp["date"] = convert_date(exp.get("date"))
-            exp["dataset_id"] = ObjectId(exp["dataset_id"])
+            exp["dataset_id"] = ObjectId(dataset_id)
             if "modified_date" in exp:
                 exp["modified_date"] = convert_date(exp.get("modified_date"))
 

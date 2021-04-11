@@ -166,7 +166,10 @@ class Dataset():
 
             self.id = str(self.parms["_id"])
 
-        cursor = db_mongo.example.find({"dataset_id": self.parms["_id"]})
+        cursor = db_mongo.example.find({
+            "dataset_id": self.parms["_id"],
+            "active": {"$ne": False}
+        })
         if cursor is not None:
             for exp in cursor:
                 self.examples.append(exp)

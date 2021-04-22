@@ -74,7 +74,7 @@ def resize_image(image, target_height, target_width):
         A resized image.
     """
 
-    image = cv2.resize(image, (target_width, target_height))
+    image = cv2.resize(image, (target_width, target_height), interpolation=cv2.INTER_AREA)
     if image.ndim == 2:
         image = np.expand_dims(image, axis=-1)
 
@@ -117,7 +117,7 @@ def resize_image_pad(image, target_height, target_width):
     (rows, cols) = (image.shape[0], image.shape[1])
     target_image = np.zeros((target_height, target_width, image.shape[2]), dtype=np.float)
     scale = min(target_width / cols, target_height / rows)
-    image = cv2.resize(image, None, fx=scale, fy=scale)
+    image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 
     if image.ndim == 2:
         image = np.expand_dims(image, axis=-1)
@@ -175,7 +175,10 @@ def convert_data_type(image, to='uint8'):
 def save_images_batch(images, image_path):
 
     image = np.squeeze(merge_images(images)).astype(np.uint8)
-    cv2.imwrite(image_path, image)
+    if image.ndim == 3 and image.shape[2] == 3:
+        cv2.imwrite(image_path, cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    else:
+        cv2.imwrite(image_path, image)
 #----------------------------------------------------------------------------------------------------------------------------------
 
 

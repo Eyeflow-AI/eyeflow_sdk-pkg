@@ -153,8 +153,11 @@ class Dataset():
             network_parms.update(dataset_default_parms["network_parms"][self.parms["info"]["type"]])
 
         network_parms.update(dataset_network_parms)
-
         self.parms.update({"network_parms": network_parms})
+
+        data_augmentation_default_parms = Dataset.get_data_augmentation_default_parms()
+        if data_augmentation_default_parms is not None:
+            self.parms.update({"data_augmentation_parms": data_augmentation_default_parms})
 
 
     def load_data(self):

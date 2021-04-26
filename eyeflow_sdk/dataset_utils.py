@@ -115,6 +115,18 @@ class Dataset():
 
 
     @staticmethod
+    def get_data_augmentation_default_parms():
+        """
+        Returns default data augmentation parms
+        """
+        filename = os.path.join(os.path.dirname(__file__), 'data_augmentation_default_parms.json')
+        with open(filename, 'r', newline='', encoding='utf8') as fp:
+            default_parms = json.load(fp)
+
+        return default_parms
+
+
+    @staticmethod
     def get_dataset_types():
         """
         Returns dataset types

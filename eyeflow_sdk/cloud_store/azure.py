@@ -150,6 +150,7 @@ class Connector():
         blob_client = self._get_blob_client(folder, blob_name)
         try:
             blob_client.upload_blob(data=data)
+            blob_client.get_blob_properties()
         except Exception as err:
             raise Exception(f'Error uploading {filename}: {err}')
         else:

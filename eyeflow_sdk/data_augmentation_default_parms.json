@@ -1,0 +1,61 @@
+{
+  "name": "data_augmentation_default_parms",
+  "default_parms": {
+    "general": {
+      "interpolation": "linear",
+      "border_mode": "constant",
+      "border_value": 0
+    },
+    "random_rotate": {
+      "probability": 0.3,
+      "range": [-15, 15],
+      "rescale": true
+    },
+    "random_translate": {
+      "probability": 0.3,
+      "dx_range": [-0.2, 0.2],
+      "dy_range": [-0.2, 0.2],
+      "n_trials_max": 3
+    },
+    "random_shear": {
+      "probability": 0.3,
+      "range": [-10, 10]
+    },
+    "random_scale": {
+      "probability": 0.3,
+      "range": [0.8, 1.2]
+    },
+    "random_flip": {
+      "flip_h": 0.3,
+      "flip_v": 0.3
+    },
+    "random_contrast": {
+      "probability": 0.3,
+      "range": [0.8, 1.2]
+    },
+    "random_brightness": {
+      "probability": 0.3,
+      "range": [-0.2, 0.3]
+    },
+    "random_gamma": {
+      "probability": 0.3,
+      "range": [0.4, 1.6]
+    },
+    "random_saturation": {
+      "probability": 0.3,
+      "range": [0.5, 1.5]
+    },
+    "random_hue": {
+      "probability": 0.3,
+      "range": [-0.05, 0.05]
+    },
+    "random_noise": {
+      "probability": 0.3,
+      "method": "gauss"
+    },
+    "random_blur": {
+      "probability": 0.3,
+      "kernel": 5
+    }
+  }
+}

@@ -145,18 +145,20 @@ class Dataset():
         network_parms = {}
         dataset_network_parms = self.parms.get("network_parms", network_parms)
         network_default_parms = Dataset.get_network_default_parms()
-        if network_default_parms is not None:
+        if network_default_parms:
             network_parms.update(network_default_parms["network_parms"][self.parms["info"]["type"]])
 
         dataset_default_parms = Dataset.get_dataset_default_parms()
-        if dataset_default_parms is not None:
+        if dataset_default_parms:
             network_parms.update(dataset_default_parms["network_parms"][self.parms["info"]["type"]])
 
         network_parms.update(dataset_network_parms)
         self.parms.update({"network_parms": network_parms})
 
         data_augmentation_default_parms = Dataset.get_data_augmentation_default_parms()
-        if data_augmentation_default_parms is not None:
+        if data_augmentation_default_parms:
+            data_augmentation_default_parms = data_augmentation_default_parms["default_parms"]
+            data_augmentation_default_parms.update(self.parms.get("data_augmentation_parms", {}))
             self.parms.update({"data_augmentation_parms": data_augmentation_default_parms})
 
 

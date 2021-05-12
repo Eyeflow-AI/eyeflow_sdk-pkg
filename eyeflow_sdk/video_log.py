@@ -66,8 +66,10 @@ def upload_extracts(dataset_id, db_config, cloud_parms):
         files_data = []
         files_list = []
         files_time = []
-        for filename in os.listdir(extract_path):
-            if filename.endswith('_data.json'):
+        file_list = [f for f in os.listdir(extract_path)]
+        for filename in file_list:
+            exp_id = filename[:24]
+            if filename.endswith('_data.json') and (exp_id + ".jpg") in file_list and (exp_id + "_thumb.jpg") in file_list:
                 try:
                     filepath = os.path.join(extract_path, filename)
                     with open(filepath, 'r') as json_file:
@@ -83,8 +85,13 @@ def upload_extracts(dataset_id, db_config, cloud_parms):
                     pass
 
         cloud_files = cloud_obj.list_files_info(folder="extract", resource_id=dataset_id)
+        file_list = [f["filename"] for f in cloud_files]
         for cloud_file in cloud_files:
-            if cloud_file["filename"].endswith('_data.json') and cloud_file["filename"] not in files_list:
+            exp_id = cloud_file["filename"][:24]
+            if cloud_file["filename"].endswith('_data.json') \
+                and cloud_file["filename"] not in files_list \
+                and (exp_id + ".jpg") in file_list \
+                and (exp_id + "_thumb.jpg") in file_list:
                 try:
                     data = json.loads(cloud_obj.download_file(folder="extract", resource_id=dataset_id, filename=cloud_file["filename"]))
                     files_data.append(data)
@@ -120,8 +127,8 @@ def upload_extracts(dataset_id, db_config, cloud_parms):
     # clear_log(file_ac.get_local_folder())
     file_ac.purge_files(max_files=MAX_EXTRACT_FILES)
     generate_extract_thumbs(file_ac.get_local_folder())
-    save_extract_list(file_ac.get_local_folder())
     file_ac.sync_files(origin="local")
+    save_extract_list(file_ac.get_local_folder())
 #----------------------------------------------------------------------------------------------------------------------------------
 
 class VideoLog(object):

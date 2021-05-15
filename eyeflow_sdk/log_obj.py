@@ -16,8 +16,13 @@ import yaml
 if "CONF_PATH" not in os.environ:
     os.environ["CONF_PATH"] = "/opt/eyeflow/conf"
 
-with open(os.path.join(os.environ["CONF_PATH"], "eyeflow_conf.yaml"), "r") as ymlfile:
-    CONFIG = yaml.safe_load(ymlfile)
+if os.path.isfile(os.path.join(os.environ["CONF_PATH"], "eyeflow_conf.yaml")):
+    with open(os.path.join(os.environ["CONF_PATH"], "eyeflow_conf.yaml"), "r") as ymlfile:
+        CONFIG = yaml.safe_load(ymlfile)
+else:
+    os.environ["CONF_PATH"] = os.path.dirname(__file__)
+    with open(os.path.join(os.path.dirname(__file__), "eyeflow_conf.yaml"), "r") as ymlfile:
+        CONFIG = yaml.safe_load(ymlfile)
 #----------------------------------------------------------------------------------------------------------------------------------
 
 def setup_papertrail_handler(papertrail_cfg):

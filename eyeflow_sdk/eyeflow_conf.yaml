@@ -2,22 +2,6 @@ log:
     log_folder: /opt/eyeflow/log
     train_folder: /opt/eyeflow/data/train
 
-mq-service:
-    host: mq.siliconlife.ai
-    port: 5672
-    user: eyeflow_app
-    pass: password
-
-auth-service:
-    host: ldap.siliconlife.ai
-    port: 389
-    bind_dn: cn=admin,dc=siliconlife,dc=ai
-    bind_pass: password
-
-db-service:
-    db_url: mongodb://app_user:password@db.siliconlife.ai/eyeflow
-    db_name: eyeflow
-
 file-service:
     dataset:
         local_folder: /opt/eyeflow/data/datasets
@@ -50,11 +34,5 @@ file-service:
     flow-components:
         local_folder: /opt/eyeflow/src/flow-components
         cloud_folder: flow-components
-cloud:
-    provider: azure
-    account_url: https://store.blob.core.windows.net
-    account_key: azure_storage_key
-    subscription: "Azure Subscription"
-    resource-group: "resource-group"
 
 flow_folder: /opt/eyeflow/data/flow

@@ -143,21 +143,40 @@ class VideoLog(object):
         for idx, image in enumerate(image_batch):
             if random.random() < float(self._vlog_size):
                 obj_id = str(ObjectId())
-                cv2.imwrite(os.path.join(self._dest_path, obj_id + '.jpg'), image[0])
-                img_data = {
-                    "_id": obj_id,
-                    "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
-                    "img_height": image[0].shape[0],
-                    "img_width": image[0].shape[1],
-                    "detections": annotations[idx],
-                    "annotations": annotations[idx]
-                }
 
-                if 'frame_time' in image[2]:
-                    img_data['frame_time'] = image[2]['frame_time']
+                if isinstance(image, dict):
+                    cv2.imwrite(os.path.join(self._dest_path, obj_id + '.jpg'), image["input_image"])
+                    img_data = {
+                        "_id": obj_id,
+                        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                        "img_height": image["input_image"].shape[0],
+                        "img_width": image["input_image"].shape[1],
+                        "detections": annotations[idx],
+                        "annotations": annotations[idx]
+                    }
 
-                if 'video_file' in image[2]:
-                    img_data['video_file'] = image[2]['video_file']
+                    if 'frame_time' in image["frame_data"]:
+                        img_data['frame_time'] = image["frame_data"]['frame_time']
+
+                    if 'video_file' in image["frame_data"]:
+                        img_data['video_file'] = image["frame_data"]['video_file']
+
+                else:
+                    cv2.imwrite(os.path.join(self._dest_path, obj_id + '.jpg'), image[0])
+                    img_data = {
+                        "_id": obj_id,
+                        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                        "img_height": image[0].shape[0],
+                        "img_width": image[0].shape[1],
+                        "detections": annotations[idx],
+                        "annotations": annotations[idx]
+                    }
+
+                    if 'frame_time' in image[2]:
+                        img_data['frame_time'] = image[2]['frame_time']
+
+                    if 'video_file' in image[2]:
+                        img_data['video_file'] = image[2]['video_file']
 
                 with open(os.path.join(self._dest_path, obj_id + '_data.json'), 'w', newline='', encoding='utf8') as file_p:
                     json.dump(img_data, file_p, ensure_ascii=False, indent=2, default=str)

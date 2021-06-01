@@ -9,6 +9,7 @@ import os
 
 import json
 import datetime
+import pytz
 import random
 import cv2
 import importlib
@@ -52,8 +53,8 @@ def upload_extracts(dataset_id, db_config, cloud_parms):
         """
         thumbs_list = [fname for fname in os.listdir(extract_path) if fname.endswith('_thumb.jpg')]
         for filename in os.listdir(extract_path):
-            if filename.endswith('.jpg') and filename not in thumbs_list:
-                file_thumb = filename[:-4] + "_thumb.jpg"
+            file_thumb = filename[:-4] + "_thumb.jpg"
+            if filename.endswith('.jpg') and filename not in thumbs_list and file_thumb not in thumbs_list:
                 img = cv2.imread(os.path.join(extract_path, filename))
                 if max(img.shape) > THUMB_SIZE:
                     img, _ = resize_image_scale(img, THUMB_SIZE)
@@ -136,6 +137,7 @@ class VideoLog(object):
         self._vlog_size = vlog_size
         file_ac = FileAccess(storage="extract", resource_id=dataset_id)
         self._dest_path = file_ac.get_local_folder()
+        self._dataset_id = dataset_id
         self._last_log = datetime.datetime(2000, 1, 1)
 
 
@@ -144,14 +146,26 @@ class VideoLog(object):
             if random.random() < float(self._vlog_size):
                 obj_id = str(ObjectId())
 
+                filename = obj_id + '.jpg'
+                file_thumb = filename[:-4] + "_thumb.jpg"
                 if isinstance(image, dict):
-                    cv2.imwrite(os.path.join(self._dest_path, obj_id + '.jpg'), image["input_image"])
+                    cv2.imwrite(os.path.join(self._dest_path, filename), image["input_image"])
+                    file_stat_img = os.stat(os.path.join(self._dest_path, filename))
+
+                    if max(image["input_image"].shape) > THUMB_SIZE:
+                        img, _ = resize_image_scale(image["input_image"], THUMB_SIZE)
+                        cv2.imwrite(os.path.join(self._dest_path, file_thumb), img)
+                    else:
+                        cv2.imwrite(os.path.join(self._dest_path, file_thumb), image["input_image"])
+                    file_stat_thumb = os.stat(os.path.join(self._dest_path, file_thumb))
+
                     img_data = {
                         "_id": obj_id,
-                        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                        "date": pytz.utc.localize(datetime.datetime.now()),
                         "img_height": image["input_image"].shape[0],
                         "img_width": image["input_image"].shape[1],
-                        "detections": annotations[idx],
+                        "file_size": file_stat_img.st_size,
+                        "thumb_size": file_stat_thumb.st_size,
                         "annotations": annotations[idx]
                     }
 
@@ -160,15 +174,24 @@ class VideoLog(object):
 
                     if 'video_file' in image["frame_data"]:
                         img_data['video_file'] = image["frame_data"]['video_file']
-
                 else:
-                    cv2.imwrite(os.path.join(self._dest_path, obj_id + '.jpg'), image[0])
+                    cv2.imwrite(os.path.join(self._dest_path, filename), image[0])
+                    file_stat_img = os.stat(os.path.join(self._dest_path, filename))
+
+                    if max(image[0].shape) > THUMB_SIZE:
+                        img, _ = resize_image_scale(image[0], THUMB_SIZE)
+                        cv2.imwrite(os.path.join(self._dest_path, file_thumb), img)
+                    else:
+                        cv2.imwrite(os.path.join(self._dest_path, file_thumb), image[0])
+                    file_stat_thumb = os.stat(os.path.join(self._dest_path, file_thumb))
+
                     img_data = {
                         "_id": obj_id,
-                        "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
+                        "date": pytz.utc.localize(datetime.datetime.now()),
                         "img_height": image[0].shape[0],
                         "img_width": image[0].shape[1],
-                        "detections": annotations[idx],
+                        "file_size": file_stat_img.st_size,
+                        "thumb_size": file_stat_thumb.st_size,
                         "annotations": annotations[idx]
                     }
 
@@ -179,7 +202,7 @@ class VideoLog(object):
                         img_data['video_file'] = image[2]['video_file']
 
                 with open(os.path.join(self._dest_path, obj_id + '_data.json'), 'w', newline='', encoding='utf8') as file_p:
-                    json.dump(img_data, file_p, ensure_ascii=False, indent=2, default=str)
+                    json.dump(img_data, file_p, ensure_ascii=False, default=str)
 
                 if (datetime.datetime.now() - self._last_log) > datetime.timedelta(minutes=1):
                     clear_log(self._dest_path)

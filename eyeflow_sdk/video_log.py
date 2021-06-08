@@ -38,7 +38,7 @@ def clear_log(extract_path, max_files=MAX_EXTRACT_FILES):
                 pass
 #----------------------------------------------------------------------------------------------------------------------------------
 
-def upload_extracts(dataset_id, db_config, cloud_parms):
+def upload_extracts(dataset_id, db_config, cloud_parms, max_files=MAX_EXTRACT_FILES):
     """
     Upload extracts of process to cloud
     """
@@ -126,7 +126,7 @@ def upload_extracts(dataset_id, db_config, cloud_parms):
 
     file_ac = FileAccess(storage="extract", resource_id=dataset_id, cloud_parms=cloud_parms)
     # clear_log(file_ac.get_local_folder())
-    file_ac.purge_files(max_files=MAX_EXTRACT_FILES)
+    file_ac.purge_files(max_files=max_files)
     generate_extract_thumbs(file_ac.get_local_folder())
     file_ac.sync_files(origin="local")
     save_extract_list(file_ac.get_local_folder())

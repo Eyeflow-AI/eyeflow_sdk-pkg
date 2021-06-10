@@ -172,8 +172,8 @@ class VideoLog(object):
                     if 'frame_time' in image["frame_data"]:
                         img_data['frame_time'] = image["frame_data"]['frame_time']
 
-                    if 'video_file' in image["frame_data"]:
-                        img_data['video_file'] = image["frame_data"]['video_file']
+                    if 'video_data' in image["frame_data"]:
+                        img_data['video_data'] = image["frame_data"]['video_data']
                 else:
                     cv2.imwrite(os.path.join(self._dest_path, filename), image[0])
                     file_stat_img = os.stat(os.path.join(self._dest_path, filename))

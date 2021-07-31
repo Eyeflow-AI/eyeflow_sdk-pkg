@@ -175,10 +175,11 @@ def convert_data_type(image, to='uint8'):
 def save_images_batch(images, image_path):
 
     image = np.squeeze(merge_images(images)).astype(np.uint8)
-    if image.ndim == 3 and image.shape[2] == 3:
-        cv2.imwrite(image_path, cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    else:
-        cv2.imwrite(image_path, image)
+    cv2.imwrite(image_path, image)
+    # if image.ndim == 3 and image.shape[2] == 3:
+    #     cv2.imwrite(image_path, cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    # else:
+    #     cv2.imwrite(image_path, image)
 #----------------------------------------------------------------------------------------------------------------------------------
 
 

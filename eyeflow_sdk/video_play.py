@@ -49,13 +49,13 @@ class VideoPlay():
             while self._max_frame < frame:
                 if self._video_open:
                     success, video_frame = self._video_cap.read()
-                    video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
                     if not success:
                         self._video_open = False
                         return self._video_frames[str(self._max_frame)], self._max_frame
-                    else:
-                        self._max_frame += 1
-                        self._video_frames[str(self._max_frame)] = video_frame
+
+                    video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
+                    self._max_frame += 1
+                    self._video_frames[str(self._max_frame)] = video_frame
 
         self.discard_frames_window()
         return self._video_frames[str(frame)], frame

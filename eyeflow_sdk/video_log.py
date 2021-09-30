@@ -18,7 +18,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 
 from eyeflow_sdk.file_access import FileAccess
-from eyeflow_sdk.img_utils import resize_image_scale
+import eyeflow_sdk.img_utils as img_utils
 from eyeflow_sdk.log_obj import log
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ def upload_extracts(dataset_id, db_config, cloud_parms, max_files=MAX_EXTRACT_FI
             if filename.endswith('.jpg') and filename not in thumbs_list and file_thumb not in thumbs_list:
                 img = cv2.imread(os.path.join(extract_path, filename))
                 if max(img.shape) > THUMB_SIZE:
-                    img, _ = resize_image_scale(img, THUMB_SIZE)
+                    img, _ = img_utils.resize_image_scale(img, THUMB_SIZE)
                 cv2.imwrite(os.path.join(extract_path, file_thumb), img)
 
 
@@ -148,58 +148,39 @@ class VideoLog(object):
 
                 filename = obj_id + '.jpg'
                 file_thumb = filename[:-4] + "_thumb.jpg"
-                if isinstance(image, dict):
+                if image["input_image"].shape[2] == 3:
+                    cv2.imwrite(os.path.join(self._dest_path, filename), cv2.cvtColor(image["input_image"], cv2.COLOR_BGR2RGB))
+                else:
                     cv2.imwrite(os.path.join(self._dest_path, filename), image["input_image"])
-                    file_stat_img = os.stat(os.path.join(self._dest_path, filename))
+                file_stat_img = os.stat(os.path.join(self._dest_path, filename))
 
-                    if max(image["input_image"].shape) > THUMB_SIZE:
-                        img, _ = resize_image_scale(image["input_image"], THUMB_SIZE)
-                        cv2.imwrite(os.path.join(self._dest_path, file_thumb), img)
+                if max(image["input_image"].shape) > THUMB_SIZE:
+                    img, _ = img_utils.resize_image_scale(image["input_image"], THUMB_SIZE)
+                    if img.shape[2] == 3:
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                    cv2.imwrite(os.path.join(self._dest_path, file_thumb), img)
+                else:
+                    if image["input_image"].shape[2] == 3:
+                        cv2.imwrite(os.path.join(self._dest_path, file_thumb), cv2.cvtColor(image["input_image"], cv2.COLOR_BGR2RGB))
                     else:
                         cv2.imwrite(os.path.join(self._dest_path, file_thumb), image["input_image"])
-                    file_stat_thumb = os.stat(os.path.join(self._dest_path, file_thumb))
+                file_stat_thumb = os.stat(os.path.join(self._dest_path, file_thumb))
 
-                    img_data = {
-                        "_id": obj_id,
-                        "date": pytz.utc.localize(datetime.datetime.now()),
-                        "img_height": image["input_image"].shape[0],
-                        "img_width": image["input_image"].shape[1],
-                        "file_size": file_stat_img.st_size,
-                        "thumb_size": file_stat_thumb.st_size,
-                        "annotations": annotations[idx]
-                    }
+                img_data = {
+                    "_id": obj_id,
+                    "date": pytz.utc.localize(datetime.datetime.now()),
+                    "img_height": image["input_image"].shape[0],
+                    "img_width": image["input_image"].shape[1],
+                    "file_size": file_stat_img.st_size,
+                    "thumb_size": file_stat_thumb.st_size,
+                    "annotations": annotations[idx]
+                }
 
-                    if 'frame_time' in image["frame_data"]:
-                        img_data['frame_time'] = image["frame_data"]['frame_time']
+                if 'frame_time' in image["frame_data"]:
+                    img_data['frame_time'] = image["frame_data"]['frame_time']
 
-                    if 'video_data' in image["frame_data"]:
-                        img_data['video_data'] = image["frame_data"]['video_data']
-                else:
-                    cv2.imwrite(os.path.join(self._dest_path, filename), image[0])
-                    file_stat_img = os.stat(os.path.join(self._dest_path, filename))
-
-                    if max(image[0].shape) > THUMB_SIZE:
-                        img, _ = resize_image_scale(image[0], THUMB_SIZE)
-                        cv2.imwrite(os.path.join(self._dest_path, file_thumb), img)
-                    else:
-                        cv2.imwrite(os.path.join(self._dest_path, file_thumb), image[0])
-                    file_stat_thumb = os.stat(os.path.join(self._dest_path, file_thumb))
-
-                    img_data = {
-                        "_id": obj_id,
-                        "date": pytz.utc.localize(datetime.datetime.now()),
-                        "img_height": image[0].shape[0],
-                        "img_width": image[0].shape[1],
-                        "file_size": file_stat_img.st_size,
-                        "thumb_size": file_stat_thumb.st_size,
-                        "annotations": annotations[idx]
-                    }
-
-                    if 'frame_time' in image[2]:
-                        img_data['frame_time'] = image[2]['frame_time']
-
-                    if 'video_file' in image[2]:
-                        img_data['video_file'] = image[2]['video_file']
+                if 'video_data' in image["frame_data"]:
+                    img_data['video_data'] = image["frame_data"]['video_data']
 
                 with open(os.path.join(self._dest_path, obj_id + '_data.json'), 'w', newline='', encoding='utf8') as file_p:
                     json.dump(img_data, file_p, ensure_ascii=False, default=str)

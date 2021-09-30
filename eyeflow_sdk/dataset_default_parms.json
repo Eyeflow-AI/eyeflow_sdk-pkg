@@ -1,46 +1,223 @@
 {
     "name": "dataset_default_parms",
-    "network_parms": {
+    "default_parms": {
         "classification": {
-            "epochs": 5,
-            "steps_per_epoch": 100,
-            "input_shape": {
-                "max_side": 80,
-                "min_side": 50,
-                "channels": 1
+            "train_parms": {
+                "epochs": 5,
+                "steps_per_epoch": 100,
+                "input_shape": {
+                    "max_side": 80,
+                    "min_side": 50,
+                    "channels": 1
+                },
+                "batch_size": 20,
+                "val_size": 0.1,
+                "test_size": 0.1,
+                "optimizer_parms": {
+                    "beta_2": 0.999,
+                    "beta_1": 0.9,
+                    "learning_rate": 0.001,
+                    "amsgrad": false
+                },
+                "early_stopping": {
+                    "patience": 5,
+                    "monitor": "val_loss",
+                    "min_delta": 0.01
+                },
+                "reduce_lr_on_plateau": {
+                    "min_delta": 0.01,
+                    "monitor": "val_loss",
+                    "factor": 0.5,
+                    "patience": 3,
+                    "cooldown": 0
+                },
+                "save_checkpoint": {
+                    "monitor": "val_loss",
+                    "mode": "min"
+                }
+            },
+            "dnn_parms": {
+                "component": "class_cnn",
+                "net_depth": 3,
+                "net_width": 20,
+                "preprocess_mode": "caffe",
+                "loss": "categorical_crossentropy",
+                "metrics": [
+                    "categorical_accuracy"
+                ],
+                "optimizer": "adam"
             }
         },
         "object_detection": {
-            "epochs": 10,
-            "steps_per_epoch": 200,
-            "confidence_threshold": 0.6
+            "train_parms": {
+                "epochs": 10,
+                "steps_per_epoch": 200,
+                "batch_size": 5,
+                "val_size": 0.1,
+                "test_size": 0.1,
+                "confidence_threshold": 0.6,
+                "iou_detection_threshold": 0.4,
+                "max_boxes": 30,
+                "expand_boxes": 0,
+                "input_shape": {
+                    "min_side": 256,
+                    "max_side": 320,
+                    "channels": 1
+                },
+                "optimizer_parms": {
+                    "beta_2": 0.999,
+                    "beta_1": 0.9,
+                    "learning_rate": 0.001,
+                    "amsgrad": false
+                },
+                "save_checkpoint": {
+                    "monitor": "mAP",
+                    "mode": "max"
+                },
+                "early_stopping": {
+                    "patience": 6,
+                    "monitor": "val_loss",
+                    "mode": "min",
+                    "min_delta": 0,
+                    "verbose": 1
+                },
+                "reduce_lr_on_plateau": {
+                    "min_lr": 0.000001,
+                    "patience": 4,
+                    "cooldown": 0,
+                    "monitor": "val_loss",
+                    "min_delta": 0.0001,
+                    "factor": 0.2,
+                    "mode": "auto"
+                }
+            },
+            "dnn_parms": {
+                "component": "objdet_af",
+                "preprocess_mode": "caffe",
+                "backbone": "vgg7",
+                "net_width": 20,
+                "anchor_parms": {
+                    "sizes": [
+                        12,
+                        24,
+                        48,
+                        96,
+                        192
+                    ],
+                    "strides": [
+                        8,
+                        16,
+                        32,
+                        64,
+                        128
+                    ],
+                    "ratios": [
+                        0.5,
+                        1,
+                        2
+                    ],
+                    "scales": [
+                        1,
+                        1.2,
+                        1.5
+                    ]
+                },
+                "negative_overlap": 0.3,
+                "positive_overlap": 0.45
+            }
         },
         "dim_measure": {
-            "epochs": 10,
-            "steps_per_epoch": 200,
-            "confidence_threshold": 0.6
+            "train_parms": {
+                "batch_size": 10,
+                "val_size": 0.1,
+                "test_size": 0.1,
+                "iou_detection_threshold": 0.4,
+                "optimizer_parms": {
+                    "beta_2": 0.999,
+                    "beta_1": 0.9,
+                    "learning_rate": 0.001,
+                    "amsgrad": false
+                },
+                "save_checkpoint": {
+                    "monitor": "mAP",
+                    "mode": "max"
+                },
+                "early_stopping": {
+                    "patience": 5,
+                    "monitor": "mAP",
+                    "mode": "max",
+                    "min_delta": 0,
+                    "verbose": 1
+                },
+                "reduce_lr_on_plateau": {
+                    "min_lr": 0.000001,
+                    "patience": 4,
+                    "cooldown": 0,
+                    "monitor": "val_loss",
+                    "min_delta": 0.0001,
+                    "factor": 0.2,
+                    "mode": "auto"
+                }
+            },
+            "dnn_parms": {
+                "component": "retinanet",
+                "backbone": "vgg7",
+                "net_width": 20,
+                "anchor_parms": {
+                    "sizes": [
+                        10,
+                        20,
+                        40,
+                        80,
+                        160
+                    ],
+                    "strides": [
+                        8,
+                        16,
+                        32,
+                        64,
+                        128
+                    ],
+                    "ratios": [
+                        0.5,
+                        1,
+                        2
+                    ],
+                    "scales": [
+                        1,
+                        1.2,
+                        1.5
+                    ]
+                },
+                "negative_overlap": 0.3,
+                "positive_overlap": 0.4
+            }
         },
         "anomaly_detection": {
-            "epochs": 20,
-            "gan_steps_per_epoch": 500,
-            "anodet_steps_per_epoch": 200,
-            "batch_size": 64,
-            "val_size": 0.1,
-            "test_size": 0.1,
-            "learning_rate": 0.0002,
-            "beta1": 0.5,
-            "sample_num": 64,
-            "generator_dim": 32,
-            "discriminator_dim": 32,
-            "input_shape": {
-                "height": 192,
-                "width": 192,
-                "channels": 1
+            "train_parms": {
+                "input_shape": {
+                    "height": 192,
+                    "width": 192,
+                    "channels": 1
+                },
+                "epochs": 20,
+                "gan_steps_per_epoch": 500,
+                "anodet_steps_per_epoch": 200,
+                "learning_rate": 0.0002,
+                "beta1": 0.5,
+                "batch_size": 64,
+                "sample_num": 64,
+                "val_size": 0.1,
+                "test_size": 0.1
             },
-            "generator_input_shape": {
-                "height": 192,
-                "width": 192,
-                "channels": 1
+            "dnn_parms": {
+                "generator_dim": 32,
+                "discriminator_dim": 32,
+                "generator_input_shape": {
+                    "height": 192,
+                    "width": 192,
+                    "channels": 1
+                }
             }
         }
     }

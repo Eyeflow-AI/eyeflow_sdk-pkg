@@ -10,30 +10,18 @@ import json
 import random
 import copy
 import datetime
+import pytz
 import dateutil.parser
-
-import unicodedata
-import re
+import requests
 
 import cv2
 import numpy as np
 import h5py
 
-from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 from eyeflow_sdk.log_obj import log, CONFIG
-from eyeflow_sdk.file_access import FileAccess
-#----------------------------------------------------------------------------------------------------------------------------------
-
-def slugify(value):
-    """
-    Normalizes string, removes non-alpha characters, and converts spaces to underscore.
-    """
-    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode()
-    value = str(re.sub(r'[^\w\s-]', '', value).strip())
-    value = str(re.sub(r'[\s]+', '_', value))
-    return value
+import eyeflow_sdk.edge_client as edge_client
 #----------------------------------------------------------------------------------------------------------------------------------
 
 def default_json_converter(obj):
@@ -48,46 +36,14 @@ class Dataset():
     """
     Class to serialize and deserialize datasets to/from a file
     """
-    def __init__(self, dataset, db_config=None, cloud_parms=None):
-        if dataset != slugify(dataset):
-            raise Exception(f"Invalid dataset name {dataset} - Sugestion: {slugify(dataset)}")
-
-        self.id = None
+    def __init__(self, dataset_id, app_token=None):
+        self.id = str(ObjectId(dataset_id))
         self.dataset_name = None
-
-        if len(dataset) == 24:
-            try:
-                self.id = str(ObjectId(dataset))
-            except:
-                self.dataset_name = dataset
-                self.id = None
-        else:
-            self.dataset_name = dataset
-
-        if db_config is not None:
-            self.db_config = db_config
-        else:
-            self.db_config = CONFIG["db-service"]
-
-        self._cloud_parms = cloud_parms
-        self._file_ac = FileAccess(
-            storage="dataset",
-            resource_id=self.id,
-            cloud_parms=self._cloud_parms
-        )
+        self._app_token = app_token
 
         self.parms = {}
         self.examples = []
         self.images = {}
-
-
-    @staticmethod
-    def get_mongo_database(db_config):
-        """
-        Returns a client to mongo_db access
-        """
-        client = MongoClient(db_config["db_url"])
-        return client[db_config["db_name"]]
 
 
     @staticmethod
@@ -103,23 +59,14 @@ class Dataset():
 
 
     @staticmethod
-    def get_network_default_parms():
-        """
-        Returns default network parms
-        """
-        filename = os.path.join(os.path.dirname(__file__), 'network_default_parms.json')
-        with open(filename, 'r', newline='', encoding='utf8') as fp:
-            default_parms = json.load(fp)
-
-        return default_parms
-
-
-    @staticmethod
     def get_data_augmentation_default_parms():
         """
         Returns default data augmentation parms
         """
         filename = os.path.join(os.path.dirname(__file__), 'data_augmentation_default_parms.json')
+        if not os.path.isfile(filename):
+            return None
+
         with open(filename, 'r', newline='', encoding='utf8') as fp:
             default_parms = json.load(fp)
 
@@ -132,6 +79,9 @@ class Dataset():
         Returns dataset types
         """
         filename = os.path.join(os.path.dirname(__file__), 'dataset_types.json')
+        if not os.path.isfile(filename):
+            return None
+
         with open(filename, 'r', newline='', encoding='utf8') as fp:
             default_parms = json.load(fp)
 
@@ -142,147 +92,124 @@ class Dataset():
         """
         Performs an update in parms with all default parms read from database
         """
-        network_parms = {}
-        dataset_network_parms = self.parms.get("network_parms", network_parms)
-        network_default_parms = Dataset.get_network_default_parms()
-        if network_default_parms:
-            network_parms.update(network_default_parms["network_parms"][self.parms["info"]["type"]])
-
+        train_parms = {}
+        dnn_parms = {}
         dataset_default_parms = Dataset.get_dataset_default_parms()
         if dataset_default_parms:
-            network_parms.update(dataset_default_parms["network_parms"][self.parms["info"]["type"]])
+            train_parms = dataset_default_parms["default_parms"][self.parms["info"]["type"]]["train_parms"]
+            dnn_parms = dataset_default_parms["default_parms"][self.parms["info"]["type"]]["dnn_parms"]
 
-        network_parms.update(dataset_network_parms)
-        self.parms.update({"network_parms": network_parms})
+        if "dnn_parms" in self.parms:
+            dnn_parms.update(self.parms["dnn_parms"])
+        elif "network_parms" in self.parms and "dnn_parms" in self.parms["network_parms"]:
+            dnn_parms.update(self.parms["network_parms"]["dnn_parms"])
 
+        if "train_parms" in self.parms:
+            train_parms.update(self.parms["train_parms"])
+        elif "network_parms" in self.parms:
+            train_parms.update(self.parms["network_parms"])
+            if "dnn_parms" in train_parms:
+                del train_parms["dnn_parms"]
+
+        self.parms["train_parms"] = train_parms
+        self.parms["dnn_parms"] = dnn_parms
+
+        if "network_parms" in self.parms:
+            del self.parms["network_parms"]
+
+        data_augmentation_parms = {}
         data_augmentation_default_parms = Dataset.get_data_augmentation_default_parms()
         if data_augmentation_default_parms:
-            data_augmentation_default_parms = data_augmentation_default_parms["default_parms"]
-            data_augmentation_default_parms.update(self.parms.get("data_augmentation_parms", {}))
-            self.parms.update({"data_augmentation_parms": data_augmentation_default_parms})
+            data_augmentation_parms = data_augmentation_default_parms["default_parms"]
+            data_augmentation_parms.update(self.parms.get("data_augmentation_parms", {}))
+
+        self.parms["data_augmentation_parms"] = data_augmentation_parms
 
 
     def load_data(self):
         """
-        Load dataset data from database
+        Load dataset data from ws
         """
-        db_mongo = Dataset.get_mongo_database(self.db_config)
+        if not self._app_token:
+            raise Exception('AppToken not set')
 
-        if self.id:
-            self.parms = db_mongo.dataset.find_one({"_id": ObjectId(self.id)})
+        dataset = edge_client.get_dataset(self._app_token, self.id)
+        if not dataset:
+            raise Exception(f'Fail loading dataset_id {self.id}')
 
-            if self.parms is None:
-                raise Exception(f'Dataset not found: {self.id}')
-
-            self.dataset_name = str(self.parms["name"])
-        else:
-            self.parms = db_mongo.dataset.find_one({"name": self.dataset_name})
-
-            if self.parms is None:
-                raise Exception(f'Dataset not found: {self.dataset_name}')
-
-            self.id = str(self.parms["_id"])
-
-        cursor = db_mongo.example.find({
-            "dataset_id": self.parms["_id"],
-            "active": {"$ne": False}
-        })
-        if cursor is not None:
-            for exp in cursor:
-                self.examples.append(exp)
-
+        self.dataset_name = dataset["dataset_parms"].get("name")
+        self.parms = dataset["dataset_parms"]
+        self.examples = dataset["annotations"]
+        self.update_default_parms()
         log.info(f"Load dataset from database {len(self.examples)} examples")
 
 
-    def load_images_from_disk(self, origin="cloud"):
-        """
-        Load images from disk
-        """
-        if self._cloud_parms is not None:
-            self._file_ac.sync_files(origin=origin)
+    @staticmethod
+    def load_file_from_cloud(url):
+        with requests.get(url, stream=True) as r:
+            r.raise_for_status()
+            img = b""
+            for chunk in r.iter_content(chunk_size=8192):
+                # If you have chunk encoded response uncomment 'if' and set chunk_size parameter to None.
+                #if chunk:
+                img += chunk
 
+            return img
+
+
+    def load_image(self, example_img):
+        """
+        Load image to memory from disk or cloud
+        """
         for exp in self.examples:
-            with self._file_ac.open(exp["example"], 'rb') as fp:
+            if exp["example"] == example_img:
+                break
+        else:
+            raise Exception(f"Example not found {example_img}")
+
+        exp_folder = os.path.join(CONFIG["file-service"]["dataset"]["local_folder"], self.id)
+        if os.path.isfile(os.path.join(exp_folder, exp["example"])):
+            with open(os.path.join(exp_folder, exp["example"]), 'rb') as fp:
                 self.images[exp["example"]] = fp.read()
+        else:
+            self.images[exp["example"]] = self.load_file_from_cloud(exp["download_url"])
 
 
     def load_all_images(self):
         """
-        Load images in memory
+        Load images
         """
         for exp in self.examples:
-            if exp["example"] in self.images:
-                continue
-
-            if self._file_ac.is_file(exp["example"]):
-                with self._file_ac.open(exp["example"], 'rb') as fp:
-                    self.images[exp["example"]] = fp.read()
-            else:
-                if self._cloud_parms is None:
-                    raise Exception('Image not found and cloud parms not set')
-
-                self.images[exp["example"]] = self._file_ac.load_cloud_file(exp["example"])
+            if exp["example"] not in self.images:
+                exp_folder = os.path.join(CONFIG["file-service"]["dataset"]["local_folder"], self.id)
+                if os.path.isfile(os.path.join(exp_folder, exp["example"])):
+                    with open(os.path.join(exp_folder, exp["example"]), 'rb') as fp:
+                        self.images[exp["example"]] = fp.read()
+                else:
+                    self.images[exp["example"]] = self.load_file_from_cloud(exp["download_url"])
 
 
-    def save_data_db(self):
-        """
-        Save dataset data to database
-        """
-        db_mongo = Dataset.get_mongo_database(self.db_config)
-
-        dataset_collection = db_mongo.dataset
-        self.parms["_id"] = ObjectId(self.id)
-        self.parms["info"]["package"] = ObjectId(self.parms["info"]["package"])
-        self.parms["info"]['creation_date'] = datetime.datetime.now()
-        self.parms["info"]['modified_date'] = datetime.datetime.now()
-
-        dataset_collection.delete_many({"_id": self.parms['_id']})
-        dataset_collection.insert_one(self.parms)
-
-        example_collection = db_mongo.example
-        # example_collection.delete_many({"dataset": self.parms['name']})
-        example_collection.delete_many({"dataset_id": self.parms['_id']})
-
-        for exp in self.examples:
-            exp["dataset"] = self.parms['name']
-            exp["dataset_id"] = self.parms['_id']
-            example_collection.insert_one(exp)
-
-        self.save_images_to_disk()
-
-        log.info("Inserted dataset into database %d examples" % len(self.examples))
-
-
-    def save_images_to_disk(self, origin="local"):
+    def save_images_to_disk(self):
         """
         Save images to disk
         """
         self.load_all_images()
+        exp_folder = os.path.join(CONFIG["file-service"]["dataset"]["local_folder"], self.id)
 
         for exp in self.examples:
-            if self._file_ac.is_file(exp["example"]):
-                self._file_ac.remove_file(exp["example"])
+            if os.path.isfile(os.path.join(exp_folder, exp["example"])):
+                os.remove(os.path.join(exp_folder, exp["example"]))
 
-            with self._file_ac.open(exp["example"], 'wb') as fp:
+            with open(os.path.join(exp_folder, exp["example"]), 'wb') as fp:
                 fp.write(self.images[exp["example"]])
-
-        if self._cloud_parms is not None:
-            self._file_ac.sync_files(origin=origin)
 
 
     def get_example_img(self, example_img):
         """
         Returns an image in opencv format
         """
-        def load_file_from_cloud(filename):
-            if self._cloud_parms is None:
-                raise Exception('Cloud parms not set')
-
-            return self._file_ac.load_cloud_file(filename)
-
-
         if example_img not in self.images:
-            self.images[example_img] = load_file_from_cloud(example_img)
+            self.load_image(example_img)
 
         # by default all images are in RGB
         return cv2.cvtColor(cv2.imdecode(np.frombuffer(self.images[example_img], dtype=np.uint8), cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
@@ -295,23 +222,23 @@ class Dataset():
         if not self.parms:
             raise Exception('Must load or import dataset first')
 
-        train_dataset = Dataset(self.id, db_config=self.db_config, cloud_parms=self._cloud_parms)
+        train_dataset = Dataset(self.id, app_token=self._app_token)
         train_dataset.parms = copy.deepcopy(self.parms)
 
-        val_dataset = Dataset(self.id, db_config=self.db_config, cloud_parms=self._cloud_parms)
+        val_dataset = Dataset(self.id, app_token=self._app_token)
         val_dataset.parms = copy.deepcopy(self.parms)
 
-        test_dataset = Dataset(self.id, db_config=self.db_config, cloud_parms=self._cloud_parms)
+        test_dataset = Dataset(self.id, app_token=self._app_token)
         test_dataset.parms = copy.deepcopy(self.parms)
 
         if shuffle:
             random.shuffle(self.examples)
 
-        val_size = int(len(self.examples) * self.parms["network_parms"]["val_size"])
+        val_size = int(len(self.examples) * self.parms["train_parms"]["val_size"])
         if val_size < 1:
             val_size = 1
 
-        test_size = int(len(self.examples) * self.parms["network_parms"]["test_size"])
+        test_size = int(len(self.examples) * self.parms["train_parms"]["test_size"])
         if test_size < 1:
             test_size = 1
 
@@ -340,8 +267,8 @@ class Dataset():
         example_list = np.array(example_list, dtype=dt)
         image_list = np.array(image_list)
 
-        file_ac = FileAccess(storage="export", resource_id=dataset_id)
-        export_path = file_ac.get_local_folder()
+        export_path = os.path.join(CONFIG["file-service"]["export"]["local_folder"], dataset_id)
+
         with h5py.File(os.path.join(export_path, filename), 'w') as dsetfile:
             dsetfile.create_dataset('export_data', data=json.dumps(export_data, ensure_ascii=False, default=default_json_converter), dtype=dt)
             dsetfile.create_dataset('examples', data=example_list, compression="gzip", compression_opts=9)
@@ -354,7 +281,6 @@ class Dataset():
         Export dataset to folder adding only differences if a base export exists
         """
 
-        file_ac = FileAccess(storage="export", resource_id=self.id, cloud_parms=self._cloud_parms)
         if not filename:
             filename = self.id + ".dset"
 
@@ -362,7 +288,7 @@ class Dataset():
 
         export_data = {
             "export_version": "2",
-            "export_date": datetime.datetime.now(),
+            "export_date": pytz.utc.localize(datetime.datetime.now()),
             "dataset": self.dataset_name,
             "dataset_id": self.id,
             "num_examples": len(self.examples),
@@ -371,11 +297,8 @@ class Dataset():
 
         # Dataset.export_to_file(filename)
         Dataset.export_to_hdf5(export_data, self.parms, self.examples, self.images, filename, self.id)
-        if self._cloud_parms is not None:
-            file_ac.sync_files(
-                file_list=[filename],
-                origin="local"
-            )
+        # if self._app_token is not None:
+
         log.info(f"Dataset exported to file {len(self.examples)} examples")
 
 
@@ -387,8 +310,7 @@ class Dataset():
         def convert_date(str_date):
             return dateutil.parser.isoparse(str_date).replace(tzinfo=None)
 
-        file_ac = FileAccess(storage="export", resource_id=dataset_id)
-        export_path = file_ac.get_local_folder()
+        export_path = os.path.join(CONFIG["file-service"]["export"]["local_folder"], dataset_id)
         with h5py.File(os.path.join(export_path, filename), 'r') as dsetfile:
             export_data = json.loads(dsetfile['export_data'][()])
 
@@ -435,14 +357,6 @@ class Dataset():
                 filename = self.dataset_name + ".dset"
             else:
                 raise Exception(f'Must define import filename')
-
-        file_ac = FileAccess(storage="export", resource_id=self.id, cloud_parms=self._cloud_parms)
-
-        if self._cloud_parms is not None:
-            file_ac.sync_files(file_list=[filename], origin="cloud")
-
-        if not file_ac.is_file(filename):
-            raise Exception(f'Export file {filename} does not exist')
 
         export_data, self.parms, self.examples, self.images = Dataset.import_from_hdf5(filename, self.id)
 

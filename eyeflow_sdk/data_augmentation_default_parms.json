@@ -13,8 +13,8 @@
     },
     "random_translate": {
       "probability": 0.3,
-      "dx_range": [-0.2, 0.2],
-      "dy_range": [-0.2, 0.2],
+      "dx_range": [-0.1, 0.1],
+      "dy_range": [-0.1, 0.1],
       "n_trials_max": 3
     },
     "random_shear": {

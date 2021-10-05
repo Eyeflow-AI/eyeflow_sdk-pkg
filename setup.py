@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="eyeflow_sdk",
-    version="0.9.52",
+    version="0.9.53",
     author="SiliconLife.AI",
     author_email="support@siliconlife.ai",
     description="Functions and classes for development of Eyeflow Applications",
@@ -31,6 +31,7 @@ setuptools.setup(
         "pynvml",
         "xmltodict",
         "pyyaml",
+        "pyjwt",
         "azure-storage-blob"
     ],
     classifiers=[

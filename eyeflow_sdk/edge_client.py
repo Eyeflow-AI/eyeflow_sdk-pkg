@@ -15,7 +15,7 @@ import requests
 import tarfile
 import jwt
 
-from eyeflow_sdk.log_obj import log
+from eyeflow_sdk.log_obj import CONFIG, log
 from eyeflow_sdk.img_utils import resize_image_scale
 # ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -85,16 +85,32 @@ def get_dataset(app_token, dataset_id):
 def get_flow(app_token, flow_id):
     try:
         log.info(f"Get flow {flow_id}")
+        local_cache = os.path.join(CONFIG["flow_folder"], flow_id + '.json')
+
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         response = requests.get(f"{endpoint}/flow/{flow_id}", headers=msg_headers)
 
         if response.status_code != 200:
-            log.error(f"Failing get flow: {response.json()}")
+            log.error(f"Failing get flow from edge: {response.json()}")
+
+            if os.path.isfile(local_cache):
+                with open(local_cache) as fp:
+                    flow = json.load(fp)
+
+                return flow
+
             return None
 
         flow = response.json()["flow"]
         if "_id" in flow:
+
+            if os.path.isfile(local_cache):
+                os.remove(local_cache)
+
+            with open(local_cache, 'w') as fp:
+                json.dump(flow, fp, default=str)
+
             return flow
         else:
             log.warning(f"Failing get flow: {response.json()}")
@@ -113,19 +129,43 @@ def get_flow(app_token, flow_id):
 
 
 def get_model(app_token, dataset_id, model_folder):
+    local_doc = None
     try:
         log.info(f"Get model {dataset_id}")
+
         folder_path = Path(model_folder + '/' + dataset_id)
         if not folder_path.is_dir():
             folder_path.mkdir(parents=True, exist_ok=True)
 
-        endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
-        url = f"{endpoint}/published-model/{dataset_id}"
+        local_cache = os.path.join(model_folder, dataset_id + '.json')
+        if os.path.isfile(local_cache):
+            with open(local_cache) as fp:
+                local_doc = json.load(fp)
 
+        endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
+        url = f"{endpoint}/published-model/{dataset_id}/"
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        response = requests.get(url, headers=msg_headers)
+        payload = {"download_url": False}
+        response = requests.get(url, headers=msg_headers, params=payload)
 
         if response.status_code != 200:
+            if local_doc:
+                return local_doc
+
+            log.error(f"Failing get model: {response.json()}")
+            return None
+
+        model_doc = response.json()
+        if local_doc and model_doc["date"] == local_doc["date"]:
+            return local_doc
+
+        payload = {"download_url": True}
+        response = requests.get(url, headers=msg_headers, params=payload)
+
+        if response.status_code != 200:
+            if local_doc:
+                return local_doc
+
             log.error(f"Failing get model: {response.json()}")
             return None
 
@@ -142,12 +182,25 @@ def get_model(app_token, dataset_id, model_folder):
         ])
 
         os.remove(dest_filename)
+
+        if os.path.isfile(local_cache):
+            os.remove(local_cache)
+
+        with open(local_cache, 'w') as fp:
+            json.dump(model_doc, fp, default=str)
+
         return model_doc
 
     except requests.ConnectionError as error:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get model dataset_id: {dataset_id}. Connection error: {error}')
         return None
     except requests.Timeout as error:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get model dataset_id: {dataset_id}. Timeout: {error}')
         return None
     except Exception as excp:
@@ -311,6 +364,7 @@ def insert_train_event(app_token, event):
 
 
 def get_flow_component(app_token, flow_component_id, flow_component_folder):
+    local_doc = None
     try:
         log.info(f"Get flow_component {flow_component_id}")
 
@@ -318,14 +372,36 @@ def get_flow_component(app_token, flow_component_id, flow_component_folder):
         if not folder_path.is_dir():
             folder_path.mkdir(parents=True, exist_ok=True)
 
+        local_cache = os.path.join(flow_component_folder, flow_component_id + '.json')
+        if os.path.isfile(local_cache):
+            with open(local_cache) as fp:
+                local_doc = json.load(fp)
+
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         url = f"{endpoint}/flow-component/{flow_component_id}"
-
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        response = requests.get(url, headers=msg_headers)
+        payload = {"download_url": False}
+        response = requests.get(url, headers=msg_headers, params=payload)
 
         if response.status_code != 200:
+            if local_doc:
+                return local_doc
+
             log.error(f"Failing get flow-component: {response.json()}")
+            return None
+
+        flow_component_doc = response.json()
+        if local_doc and flow_component_doc["version"] == local_doc["version"]:
+            return local_doc
+
+        payload = {"download_url": True}
+        response = requests.get(url, headers=msg_headers, params=payload)
+
+        if response.status_code != 200:
+            if local_doc:
+                return local_doc
+
+            log.error(f"Failing get model: {response.json()}")
             return None
 
         flow_component_doc = response.json()
@@ -341,35 +417,74 @@ def get_flow_component(app_token, flow_component_id, flow_component_folder):
         ])
 
         os.remove(dest_filename)
+
+        if os.path.isfile(local_cache):
+            os.remove(local_cache)
+
+        with open(local_cache, 'w') as fp:
+            json.dump(flow_component_doc, fp, default=str)
+
         return flow_component_doc
 
     except requests.ConnectionError as error:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get flow_component: {flow_component_id}. Connection error: {error}')
         return None
     except requests.Timeout as error:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get flow_component: {flow_component_id}. Timeout: {error}')
         return None
     except Exception as excp:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get flow_component: {flow_component_id} - {excp}')
         return None
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 
 def get_model_component(app_token, model_component_id, model_component_folder):
+    local_doc = None
     try:
         log.info(f"Get model_component {model_component_id}")
         folder_path = Path(model_component_folder + '/' + model_component_id)
         if not folder_path.is_dir():
             folder_path.mkdir(parents=True, exist_ok=True)
 
+        local_cache = os.path.join(model_component_folder, model_component_id + '.json')
+        if os.path.isfile(local_cache):
+            with open(local_cache) as fp:
+                local_doc = json.load(fp)
+
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         url = f"{endpoint}/model-component/{model_component_id}"
-
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        response = requests.get(url, headers=msg_headers)
+        payload = {"download_url": False}
+        response = requests.get(url, headers=msg_headers, params=payload)
 
         if response.status_code != 200:
+            if local_doc:
+                return local_doc
+
             log.error(f"Failing get model_component: {response.json()}")
+            return None
+
+        model_component_doc = response.json()
+        if local_doc and model_component_doc["version"] == local_doc["version"]:
+            return local_doc
+
+        payload = {"download_url": True}
+        response = requests.get(url, headers=msg_headers, params=payload)
+
+        if response.status_code != 200:
+            if local_doc:
+                return local_doc
+
+            log.error(f"Failing get model: {response.json()}")
             return None
 
         model_component_doc = response.json()
@@ -385,15 +500,31 @@ def get_model_component(app_token, model_component_id, model_component_folder):
         ])
 
         os.remove(dest_filename)
+
+        if os.path.isfile(local_cache):
+            os.remove(local_cache)
+
+        with open(local_cache, 'w') as fp:
+            json.dump(model_component_doc, fp, default=str)
+
         return model_component_id
 
     except requests.ConnectionError as error:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get model_component: {model_component_id}. Connection error: {error}')
         return None
     except requests.Timeout as error:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get model_component: {model_component_id}. Timeout: {error}')
         return None
     except Exception as excp:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get model_component: {model_component_id} - {excp}')
         return None
 # ---------------------------------------------------------------------------------------------------------------------------------
@@ -511,34 +642,73 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
 
 
 def get_video(app_token, video_id, video_folder):
+    local_doc = None
     try:
         folder_path = Path(video_folder)
         if not folder_path.is_dir():
             folder_path.mkdir(parents=True, exist_ok=True)
 
+        local_cache = os.path.join(video_folder, video_id + '.json')
+        if os.path.isfile(local_cache):
+            with open(local_cache) as fp:
+                local_doc = json.load(fp)
+
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         url = f"{endpoint}/video/{video_id}"
-
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        response = requests.get(url, headers=msg_headers)
+        payload = {"download_url": False}
+        response = requests.get(url, headers=msg_headers, params=payload)
 
         if response.status_code != 200:
+            if local_doc:
+                return local_doc
+
             log.error(f"Failing get video: {response.json()}")
+            return None
+
+        video_doc = response.json()
+        if local_doc and video_doc["date"] == local_doc["date"]:
+            return local_doc
+
+        payload = {"download_url": True}
+        response = requests.get(url, headers=msg_headers, params=payload)
+
+        if response.status_code != 200:
+            if local_doc:
+                return local_doc
+
+            log.error(f"Failing get model: {response.json()}")
             return None
 
         video_doc = response.json()
 
         dest_filename = os.path.join(video_folder, video_id + ".mp4")
         download_file(video_doc["download_url"], dest_filename)
+
+        if os.path.isfile(local_cache):
+            os.remove(local_cache)
+
+        with open(local_cache, 'w') as fp:
+            json.dump(video_doc, fp, default=str)
+
         return video_doc
 
     except requests.ConnectionError as error:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get video: {video_id}. Connection error: {error}')
         return None
     except requests.Timeout as error:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get video: {video_id}. Timeout: {error}')
         return None
     except Exception as excp:
+        if local_doc:
+            return local_doc
+
         log.error(f'Failing get video: {video_id} - {excp}')
         return None
 # ---------------------------------------------------------------------------------------------------------------------------------
@@ -577,3 +747,28 @@ def upload_video(app_token, video_id, video_file_annotation, video_file, output_
         log.error(f'Failing uploading video: {video_file}-{video_id} - {excp}')
         return None
 # ---------------------------------------------------------------------------------------------------------------------------------
+
+
+def get_edge_data(app_token):
+    try:
+        log.info(f"Get edge_data")
+        endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
+        msg_headers = {'Authorization' : f'Bearer {app_token}'}
+        response = requests.get(f"{endpoint}", headers=msg_headers)
+
+        if response.status_code != 200:
+            log.error(f"Failing get edge_data: {response.json()}")
+            return None
+
+        return response.json()["edge_data"]
+
+    except requests.ConnectionError as error:
+        log.error(f'Failing get edge_data. Connection error: {error}')
+        return None
+    except requests.Timeout as error:
+        log.error(f'Failing get edge_data. Timeout: {error}')
+        return None
+    except Exception as excp:
+        log.error(f'Failing get edge_data - {excp}')
+        return None
+#----------------------------------------------------------------------------------------------------------------------------------

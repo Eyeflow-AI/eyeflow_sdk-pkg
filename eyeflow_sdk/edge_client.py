@@ -85,6 +85,10 @@ def get_dataset(app_token, dataset_id):
 def get_flow(app_token, flow_id):
     try:
         log.info(f"Get flow {flow_id}")
+
+        if not Path(CONFIG["flow_folder"]).is_dir():
+            Path(CONFIG["flow_folder"]).mkdir(parents=True, exist_ok=True)
+
         local_cache = os.path.join(CONFIG["flow_folder"], flow_id + '.json')
 
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']

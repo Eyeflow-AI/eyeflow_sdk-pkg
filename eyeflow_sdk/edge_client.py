@@ -595,6 +595,10 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
                 except:
                     pass
 
+        if not files_data:
+            log.warning(f'Cannot upload post upload_extract: {dataset_id}. No files.')
+            return dataset_id
+
         extract_files = {
             "files_data": files_data
         }

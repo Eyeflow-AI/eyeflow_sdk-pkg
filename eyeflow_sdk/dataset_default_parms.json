@@ -219,6 +219,55 @@
                     "channels": 1
                 }
             }
+        },
+        "object_location": {
+            "train_parms": {
+                "epochs": 10,
+                "steps_per_epoch": 200,
+                "batch_size": 5,
+                "val_size": 0.1,
+                "test_size": 0.1,
+                "confidence_threshold": 0.6,
+                "iou_detection_threshold": 0.4,
+                "max_boxes": 30,
+                "input_shape": {
+                    "min_side": 64,
+                    "max_side": 64,
+                    "channels": 1
+                },
+                "optimizer_parms": {
+                    "beta_2": 0.999,
+                    "beta_1": 0.9,
+                    "learning_rate": 0.001,
+                    "amsgrad": false
+                },
+                "save_checkpoint": {
+                    "monitor": "mAP",
+                    "mode": "max"
+                },
+                "early_stopping": {
+                    "patience": 6,
+                    "monitor": "val_loss",
+                    "mode": "min",
+                    "min_delta": 0,
+                    "verbose": 1
+                },
+                "reduce_lr_on_plateau": {
+                    "min_lr": 0.000001,
+                    "patience": 4,
+                    "cooldown": 0,
+                    "monitor": "val_loss",
+                    "min_delta": 0.0001,
+                    "factor": 0.2,
+                    "mode": "auto"
+                }
+            },
+            "dnn_parms": {
+                "component": "obj_location",
+                "preprocess_mode": "caffe",
+                "backbone": "vgg7",
+                "net_width": 20
+            }
         }
     }
 }

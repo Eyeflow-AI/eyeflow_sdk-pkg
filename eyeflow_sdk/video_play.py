@@ -24,7 +24,6 @@ class VideoPlay():
         self._video_open = True
 
         success, video_frame = self._video_cap.read()
-        video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
         if not success:
             raise Exception("Fail to read video: {}".format(filename))
 
@@ -53,7 +52,6 @@ class VideoPlay():
                         self._video_open = False
                         return self._video_frames[str(self._max_frame)], self._max_frame
 
-                    video_frame = cv2.cvtColor(video_frame, cv2.COLOR_BGR2RGB)
                     self._max_frame += 1
                     self._video_frames[str(self._max_frame)] = video_frame
 

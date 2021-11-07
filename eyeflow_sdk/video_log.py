@@ -56,9 +56,6 @@ class VideoLog(object):
                 if max(img.shape) > max(self._max_output_size):
                     img, _ = img_utils.resize_image_scale(img, max(self._max_output_size))
 
-                if img.shape[2] == 3:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
                 cv2.imwrite(os.path.join(self._dest_path, filename), img)
                 file_stat_img = os.stat(os.path.join(self._dest_path, filename))
 

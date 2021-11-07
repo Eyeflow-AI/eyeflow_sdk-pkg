@@ -143,7 +143,7 @@ def convert_to_1_channel(image):
         image = np.expand_dims(image, axis=-1)
     elif image.ndim == 3:
         if image.shape[2] == 3:
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             if image.ndim == 2:
                 image = np.expand_dims(image, axis=-1)
 
@@ -175,11 +175,7 @@ def convert_data_type(image, to='uint8'):
 def save_images_batch(images, image_path):
 
     image = np.squeeze(merge_images(images)).astype(np.uint8)
-    # cv2.imwrite(image_path, image)
-    if image.ndim == 3 and image.shape[2] == 3:
-        cv2.imwrite(image_path, cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-    else:
-        cv2.imwrite(image_path, image)
+    cv2.imwrite(image_path, image)
 #----------------------------------------------------------------------------------------------------------------------------------
 
 

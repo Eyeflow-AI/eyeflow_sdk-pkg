@@ -306,7 +306,8 @@ def get_train(app_token, dataset_id, train_id, train_folder):
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         url = f"{endpoint}/model-hist/{dataset_id}/{train_id}"
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        response = requests.get(url, headers=msg_headers)
+        payload = {"download_url": True}
+        response = requests.get(url, headers=msg_headers, params=payload)
 
         if response.status_code != 200:
             log.error(f"Failing get train: {response.json()}")

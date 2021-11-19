@@ -99,20 +99,31 @@ class Dataset():
             train_parms = dataset_default_parms["default_parms"][self.parms["info"]["type"]]["train_parms"]
             dnn_parms = dataset_default_parms["default_parms"][self.parms["info"]["type"]]["dnn_parms"]
 
+        input_shape = None
         if "dnn_parms" in self.parms:
             dnn_parms.update(self.parms["dnn_parms"])
+            if "input_shape" in self.parms["dnn_parms"]:
+                input_shape = copy.deepcopy(self.parms["dnn_parms"]["input_shape"])
         elif "network_parms" in self.parms and "dnn_parms" in self.parms["network_parms"]:
             dnn_parms.update(self.parms["network_parms"]["dnn_parms"])
 
         if "train_parms" in self.parms:
             train_parms.update(self.parms["train_parms"])
+            if not input_shape:
+                input_shape = copy.deepcopy(self.parms["train_parms"]["input_shape"])
+            if "input_shape" in train_parms:
+                del train_parms["input_shape"]
         elif "network_parms" in self.parms:
             train_parms.update(self.parms["network_parms"])
             if "dnn_parms" in train_parms:
                 del train_parms["dnn_parms"]
 
+            if "input_shape" in train_parms:
+                del train_parms["input_shape"]
+
         self.parms["train_parms"] = train_parms
         self.parms["dnn_parms"] = dnn_parms
+        self.parms["dnn_parms"]["input_shape"] = input_shape
 
         if "network_parms" in self.parms:
             del self.parms["network_parms"]

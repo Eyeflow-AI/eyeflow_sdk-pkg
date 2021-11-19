@@ -33,6 +33,11 @@
             "type": "anomaly_detection",
             "description": "Anomaly Detection",
             "default_classes": []
+        },
+        {
+            "type": "object_location",
+            "description": "Object Location",
+            "default_classes": []
         }
     ]
 }

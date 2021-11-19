@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="eyeflow_sdk",
-    version="0.9.60",
+    version="0.9.61",
     author="SiliconLife.AI",
     author_email="support@siliconlife.ai",
     description="Functions and classes for development of Eyeflow Applications",

@@ -104,6 +104,17 @@ class Dataset():
             dnn_parms.update(self.parms["dnn_parms"])
             if "input_shape" in self.parms["dnn_parms"]:
                 input_shape = copy.deepcopy(self.parms["dnn_parms"]["input_shape"])
+
+            if "component" in self.parms["dnn_parms"] and "component_id" not in self.parms["dnn_parms"]:
+                if self.parms["dnn_parms"]["component"] == "objdet_af":
+                    dnn_parms["component_id"] = "6143a1faef5cc63fd4c177b1"
+                elif self.parms["dnn_parms"]["component"] == "objdet":
+                    dnn_parms["component_id"] = "6143a1edef5cc63fd4c177b0"
+                elif self.parms["dnn_parms"]["component"] == "class_cnn":
+                    dnn_parms["component_id"] = "614388073a692cccdab0e69b"
+                elif self.parms["dnn_parms"]["component"] == "obj_location":
+                    dnn_parms["component_id"] = "6178516681cbe716153175b0"
+
         elif "network_parms" in self.parms and "dnn_parms" in self.parms["network_parms"]:
             dnn_parms.update(self.parms["network_parms"]["dnn_parms"])
 

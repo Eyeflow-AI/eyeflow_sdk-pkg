@@ -53,6 +53,7 @@ class VideoLog(object):
                 filename = obj_id + '.jpg'
                 file_thumb = filename[:-4] + "_thumb.jpg"
                 img = image["input_image"]
+                scale = None
                 if max(img.shape) > max(self._max_output_size):
                     img, scale = img_utils.resize_image_scale(img, max(self._max_output_size))
 
@@ -66,12 +67,13 @@ class VideoLog(object):
                     cv2.imwrite(os.path.join(self._dest_path, file_thumb), img)
                 file_stat_thumb = os.stat(os.path.join(self._dest_path, file_thumb))
 
-                for idx_ann, ann in enumerate(annotations[idx]["instances"]):
-                    if "bbox" in ann:
-                        annotations[idx]["instances"][idx_ann]["bbox"]["x_min"] *= scale
-                        annotations[idx]["instances"][idx_ann]["bbox"]["y_min"] *= scale
-                        annotations[idx]["instances"][idx_ann]["bbox"]["x_max"] *= scale
-                        annotations[idx]["instances"][idx_ann]["bbox"]["y_max"] *= scale
+                if scale is not None:
+                    for idx_ann, ann in enumerate(annotations[idx]["instances"]):
+                        if "bbox" in ann:
+                            annotations[idx]["instances"][idx_ann]["bbox"]["x_min"] *= scale
+                            annotations[idx]["instances"][idx_ann]["bbox"]["y_min"] *= scale
+                            annotations[idx]["instances"][idx_ann]["bbox"]["x_max"] *= scale
+                            annotations[idx]["instances"][idx_ann]["bbox"]["y_max"] *= scale
 
                 img_data = {
                     "_id": obj_id,

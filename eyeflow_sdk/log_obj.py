@@ -56,7 +56,7 @@ class LogObj:
             self.application_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
 
             self.logger = logging.getLogger(__name__)
-            self.logger.setLevel(logging.INFO)
+            self.logger.setLevel(getattr(logging, CONFIG["log"].get("level", "INFO")))
 
             log_path = Path(CONFIG["log"]["log_folder"])
 

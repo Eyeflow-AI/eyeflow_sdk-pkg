@@ -10,7 +10,7 @@ def intersection_over_union(p_boxA, p_boxB):
     yB = min(p_boxA["y_max"], p_boxB["y_max"])
 
     # compute the area of intersection rectangle
-    interArea = (xB - xA + 1) * (yB - yA + 1)
+    interArea = max(0, xB - xA) * max(0, yB - yA)
 
     # compute the area of both the prediction and ground-truth rectangles
     boxAArea = (p_boxA["x_max"] - p_boxA["x_min"] + 1) * (p_boxA["y_max"] - p_boxA["y_min"] + 1)

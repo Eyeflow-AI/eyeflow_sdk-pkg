@@ -67,7 +67,7 @@ class VideoLog(object):
                     cv2.imwrite(os.path.join(self._dest_path, file_thumb), img)
                 file_stat_thumb = os.stat(os.path.join(self._dest_path, file_thumb))
 
-                if scale is not None:
+                if scale is not None and "instances" in annotations[idx]:
                     for idx_ann, ann in enumerate(annotations[idx]["instances"]):
                         if "bbox" in ann:
                             annotations[idx]["instances"][idx_ann]["bbox"]["x_min"] *= scale

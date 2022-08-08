@@ -38,6 +38,11 @@
             "type": "object_location",
             "description": "Object Location",
             "default_classes": []
+        },
+        {
+            "type": "line_location",
+            "description": "Line Location",
+            "default_classes": []
         }
     ]
 }

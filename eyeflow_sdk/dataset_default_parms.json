@@ -280,6 +280,65 @@
                     [32, 512]
                 ]
             }
+        },
+        "line_location": {
+            "train_parms": {
+                "epochs": 10,
+                "steps_per_epoch": 200,
+                "batch_size": 10,
+                "val_size": 0.1,
+                "test_size": 0.1,
+                "confidence_threshold": 0.6,
+                "iou_detection_threshold": 0.4,
+                "max_lines": 1000,
+                "optimizer_parms": {
+                    "beta_2": 0.999,
+                    "beta_1": 0.9,
+                    "learning_rate": 0.001,
+                    "amsgrad": false
+                },
+                "save_checkpoint": {
+                    "monitor": "mAP",
+                    "mode": "max"
+                },
+                "early_stopping": {
+                    "patience": 6,
+                    "monitor": "val_loss",
+                    "mode": "min",
+                    "min_delta": 0,
+                    "verbose": 1
+                },
+                "reduce_lr_on_plateau": {
+                    "min_lr": 0.000001,
+                    "patience": 4,
+                    "cooldown": 0,
+                    "monitor": "val_loss",
+                    "min_delta": 0.0001,
+                    "factor": 0.2,
+                    "mode": "auto"
+                }
+            },
+            "dnn_parms": {
+                "component": "obj_location",
+                "component_id": "6178516681cbe716153175b0",
+                "patch_size": 64,
+                "input_shape": {
+                    "min_side": 640,
+                    "max_side": 1280,
+                    "channels": 1
+                },
+               "preprocess_mode": "caffe",
+                "backbone": "vgg7",
+                "net_width": 20,
+                "pyramid_levels": [1, 2, 3, 4],
+                "strides": [2, 4, 8, 16],
+                "interest_sizes": [
+                    [-1, 8],
+                    [8, 16],
+                    [16, 32],
+                    [32, 512]
+                ]
+            }
         }
     }
 }

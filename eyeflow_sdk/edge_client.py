@@ -557,10 +557,14 @@ def generate_extract_thumbs(extract_path, thumb_size):
     for filename in os.listdir(extract_path):
         file_thumb = filename[:-4] + "_thumb.jpg"
         if filename.endswith('.jpg') and filename not in thumbs_list and file_thumb not in thumbs_list:
-            img = cv2.imread(os.path.join(extract_path, filename))
-            if max(img.shape) > thumb_size:
-                img, _ = resize_image_scale(img, thumb_size)
-            cv2.imwrite(os.path.join(extract_path, file_thumb), img)
+            try:
+                img = cv2.imread(os.path.join(extract_path, filename))
+                if max(img.shape) > thumb_size:
+                    img, _ = resize_image_scale(img, thumb_size)
+                cv2.imwrite(os.path.join(extract_path, file_thumb), img)
+            except:
+                log.error(f"Fail to generate image thumb: {filename}. Removing")
+                os.remove(os.path.join(extract_path, filename))
 #----------------------------------------------------------------------------------------------------------------------------------
 
 

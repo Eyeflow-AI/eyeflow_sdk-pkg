@@ -246,13 +246,24 @@ def upload_model(
         files_list = get_list_files_info("./")
         with tarfile.open(hist_filename, "w:gz") as tar:
             for filename in files_list:
-                tar.add(filename)
+                if not filename.endswith('.jpg'):
+                    tar.add(filename)
 
         os.chdir(wd)
 
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         url = f"{endpoint}/model/{dataset_id}/{train_id}"
+
+        onnx_filename = os.path.join(model_folder, dataset_id + ".onnx")
+        if os.path.isfile(onnx_filename):
+            files = {'model_file': open(onnx_filename, 'rb'), 'train_file': open(hist_filename, 'rb')}
+
+            model_info["onnx_model_size"] = os.stat(onnx_filename).st_size
+            values = {'model_info': json.dumps(model_info, default=str), 'train_info': json.dumps(train_info, default=str)}
+            response = requests.post(url, files=files, data=values, headers=msg_headers)
+            if response.status_code != 201:
+                log.error(f"Failing upload onnx model: {response.json()}")
 
         files = {
             'model_file': open(model_filename, 'rb'),
@@ -276,11 +287,11 @@ def upload_model(
 
         response = requests.post(url, files=files, data=values, headers=msg_headers)
 
-        if response.status_code != 201:
-            raise Exception(f"Failing upload model: {response.json()}")
-
         os.remove(model_filename)
         os.remove(hist_filename)
+
+        if response.status_code != 201:
+            raise Exception(f"Failing upload model: {response.json()}")
 
         return dataset_id
 

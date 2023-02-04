@@ -42,30 +42,34 @@ def test_get_model(app_token):
 
 def test_upload_model(app_token):
     log.info("Testing upload_model")
-    dataset_id = "5f2317bea6dacd7984e5baf5"
-    model_info = {
-        "_id": {"$oid": dataset_id},
-        "size": 0,
-        "train_parms": {"dataset": "parms"},
-        "train_id": {"$oid": "60c1031760005700126234a6"},
-        "train_date": {"$date": pytz.utc.localize(datetime.datetime.now())}
-    }
-
-    ckpt = "/opt/eyeflow/data/train/5f2317bea6dacd7984e5baf5/2021-09-23T15-56/check_point/"
-    train_id = "614ca39fd81d2a6ca94fcfdb"
-    train_info = {
-        "size": 0,
-        "train_parms": {"dataset": "parms"},
-        "train_id": {"$oid": train_id},
-        "train_history": [],
-        "train_date": {"$date": pytz.utc.localize(datetime.datetime.now())}
-    }
-
+    dataset_id = "627b001ad3380267f1dedc84"
     if not os.path.isfile(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id, dataset_id + ".json")):
         raise Exception(f"Model not found {dataset_id}")
 
     if not os.path.isfile(os.path.join(ckpt, dataset_id + ".json")):
         raise Exception(f"Hist not found {ckpt}")
+
+    with open(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id, f"{dataset_id}.json")) as fp:
+        dataset_data = json.load(fp)
+
+    train_id = dataset_data["train_id"]
+    train_date = dataset_data["train_date"]
+    model_info = {
+        "_id": {"$oid": dataset_id},
+        "size": 0,
+        "train_parms": {"dataset": "parms"},
+        "train_id": {"$oid": train_id},
+        "train_date": {"$date": train_date}
+    }
+
+    ckpt = f'/opt/eyeflow/data/train/{dataset_id}/{train_date}/check_point/'
+    train_info = {
+        "size": 0,
+        "train_parms": {"dataset": "parms"},
+        "train_id": {"$oid": train_id},
+        "train_history": [],
+        "train_date": {"$date": train_date}
+    }
 
     upload_model(
         app_token,
@@ -186,12 +190,12 @@ if __name__ == "__main__":
 
     test_get_dataset(app_token)
     test_get_flow(app_token)
-    test_get_model(app_token)
     test_get_flow_component(app_token)
     test_get_model_component(app_token)
     test_upload_extract(app_token)
     test_get_video(app_token)
     test_upload_video(app_token)
     test_upload_model(app_token)
+    test_get_model(app_token)
     test_get_train(app_token)
     test_insert_train_event(app_token)

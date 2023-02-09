@@ -46,14 +46,16 @@ def test_upload_model(app_token):
     if not os.path.isfile(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id, dataset_id + ".json")):
         raise Exception(f"Model not found {dataset_id}")
 
-    if not os.path.isfile(os.path.join(ckpt, dataset_id + ".json")):
-        raise Exception(f"Hist not found {ckpt}")
-
     with open(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id, f"{dataset_id}.json")) as fp:
         dataset_data = json.load(fp)
 
     train_id = dataset_data["train_id"]
     train_date = dataset_data["train_date"]
+    ckpt = f'/opt/eyeflow/data/train/{dataset_id}/{train_date}/check_point/'
+
+    if not os.path.isfile(os.path.join(ckpt, dataset_id + ".json")):
+        raise Exception(f"Hist not found {ckpt}")
+
     model_info = {
         "_id": {"$oid": dataset_id},
         "size": 0,
@@ -62,7 +64,6 @@ def test_upload_model(app_token):
         "train_date": {"$date": train_date}
     }
 
-    ckpt = f'/opt/eyeflow/data/train/{dataset_id}/{train_date}/check_point/'
     train_info = {
         "size": 0,
         "train_parms": {"dataset": "parms"},

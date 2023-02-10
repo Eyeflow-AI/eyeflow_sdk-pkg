@@ -143,7 +143,6 @@ def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
                 local_doc = json.load(fp)
 
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
-
         url = f"{endpoint}/published-model/{dataset_id}/"
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         payload = {"download_url": False}

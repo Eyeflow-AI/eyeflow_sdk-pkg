@@ -255,20 +255,24 @@ def upload_model(
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         url = f"{endpoint}/model/{dataset_id}/{train_id}"
 
-        onnx_filename = os.path.join(model_folder, dataset_id + ".onnx")
-        if os.path.isfile(onnx_filename):
-            files = {'model_file': open(onnx_filename, 'rb'), 'train_file': open(hist_filename, 'rb')}
-
-            model_info["onnx_model_size"] = os.stat(onnx_filename).st_size
-            values = {'model_info': json.dumps(model_info, default=str), 'train_info': json.dumps(train_info, default=str)}
-            response = requests.post(url, files=files, data=values, headers=msg_headers)
-            if response.status_code != 201:
-                log.error(f"Failing upload onnx model: {response.json()}")
-
         files = {
-            'model_file': open(model_filename, 'rb'),
+            'model_tf_file': open(model_filename, 'rb'),
             'train_file': open(hist_filename, 'rb')
         }
+
+        values = {
+            "models": {"info": model_info, "model_list": [
+                {"name": "model_tf_file", "info": {"size":  os.stat(model_filename).st_size}},
+            ]},
+            "train": {"info": train_info, "name": "train_file"}
+        }
+
+        onnx_filename = os.path.join(model_folder, dataset_id + ".onnx")
+        if os.path.isfile(onnx_filename):
+            values["models"]["model_list"].append(
+                {"name": "model_onnx_file", "info": {"size": os.stat(onnx_filename).st_size}}
+            )
+            files["model_onnx_file"] = open(onnx_filename, 'rb')
 
         test_batch_filename = os.path.join(hist_folder, "test_batch-" + dataset_id + ".jpg")
         if os.path.isfile(test_batch_filename):
@@ -278,20 +282,18 @@ def upload_model(
         if os.path.isfile(test_augmentation_filename):
             files['test_augmentation'] = open(test_augmentation_filename, 'rb')
 
-        model_info["size"] = os.stat(model_filename).st_size
-        train_info["size"] = os.stat(hist_filename).st_size
-        values = {
-            'model_info': json.dumps(model_info, default=str),
-            'train_info': json.dumps(train_info, default=str)
-        }
+        values["models"]["info"]["size"] = sum([i["info"]["size"] for i in values["models"]["model_list"]])
+        values["train"]["info"]["size"] = os.stat(hist_filename).st_size
 
+        values["models"] = json.dumps(values["models"], default=str)
+        values["train"] = json.dumps(values["train"], default=str)
         response = requests.post(url, files=files, data=values, headers=msg_headers)
 
         os.remove(model_filename)
         os.remove(hist_filename)
 
         if response.status_code != 201:
-            raise Exception(f"Failing upload model: {response.json()}")
+            raise Exception(f"Failing upload model. Request URL: {url}. Response Json: {response.json()}")
 
         return dataset_id
 

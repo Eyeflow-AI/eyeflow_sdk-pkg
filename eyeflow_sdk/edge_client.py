@@ -132,14 +132,10 @@ def get_flow(app_token, flow_id):
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 
-def get_model(app_token, dataset_id, model_folder):
+def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
     local_doc = None
     try:
         log.info(f"Get model {dataset_id}")
-
-        folder_path = Path(model_folder + '/' + dataset_id)
-        if not folder_path.is_dir():
-            folder_path.mkdir(parents=True, exist_ok=True)
 
         local_cache = os.path.join(model_folder, dataset_id + '.json')
         if os.path.isfile(local_cache):
@@ -175,17 +171,38 @@ def get_model(app_token, dataset_id, model_folder):
 
         model_doc = response.json()
 
-        dest_filename = os.path.join(model_folder, dataset_id + ".tar.gz")
-        download_file(model_doc["download_url"], dest_filename)
+        if "model_list" in model_doc:
+            for model_data in model_doc["model_list"]:
+                if model_data["info"].get("type", "") == model_type:
+                    download_url = model_data["download_url"]
+                    dest_filename = os.path.join(model_folder, model_data["info"]["file"])
+                    break
+            else:
+                log.error(f"Did not find model type {model_type} in {dataset_id} document")
+                return None
+        elif "download_url" in model_doc:
+            download_url = model_doc["download_url"]
+            dest_filename = os.path.join(model_folder, dataset_id + ".tar.gz")
+        else:
+            log.error("Get model response dont have model_list or download_url keys")
+            return None
+
+        download_file(download_url, dest_filename)
 
         # expand_file
-        call([
-            "tar",
-            "-xzf", dest_filename,
-            "--directory", folder_path
-        ])
+        if (dest_filename.endswith('tar.gz')):
 
-        os.remove(dest_filename)
+            folder_path = Path(model_folder + '/' + dataset_id)
+            if not folder_path.is_dir():
+                folder_path.mkdir(parents=True, exist_ok=True)
+
+            call([
+                "tar",
+                "-xzf", dest_filename,
+                "--directory", folder_path
+            ])
+
+            os.remove(dest_filename)
 
         if os.path.isfile(local_cache):
             os.remove(local_cache)
@@ -262,7 +279,7 @@ def upload_model(
 
         values = {
             "models": {"info": model_info, "model_list": [
-                {"name": "model_tf_file", "info": {"size":  os.stat(model_filename).st_size}},
+                {"name": "model_tf_file", "info": {"type": "tensorflow", "size":  os.stat(model_filename).st_size}},
             ]},
             "train": {"info": train_info, "name": "train_file"}
         }
@@ -270,7 +287,7 @@ def upload_model(
         onnx_filename = os.path.join(model_folder, dataset_id + ".onnx")
         if os.path.isfile(onnx_filename):
             values["models"]["model_list"].append(
-                {"name": "model_onnx_file", "info": {"size": os.stat(onnx_filename).st_size}}
+                {"name": "model_onnx_file", "info": {"type": "onnx", "size": os.stat(onnx_filename).st_size}}
             )
             files["model_onnx_file"] = open(onnx_filename, 'rb')
 
@@ -293,7 +310,7 @@ def upload_model(
         os.remove(hist_filename)
 
         if response.status_code != 201:
-            raise Exception(f"Failing upload model. Request URL: {url}. Response Json: {response.json()}")
+            raise Exception(f"Failing upload model. Response Json: {response.json()}")
 
         return dataset_id
 

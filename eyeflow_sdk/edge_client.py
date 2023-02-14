@@ -37,6 +37,7 @@ def get_list_files_info(folder):
 
 
 def download_file(url, local_filename):
+    os.makedirs(os.path.dirname(local_filename), exist_ok=True)
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
 

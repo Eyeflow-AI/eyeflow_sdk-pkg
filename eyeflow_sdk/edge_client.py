@@ -580,21 +580,21 @@ def clear_log(extract_path, max_files):
 #----------------------------------------------------------------------------------------------------------------------------------
 
 
-def generate_extract_thumbs(extract_path, thumb_size):
-    """ Generate thumb image for all image files in extract folder
+def generate_images_thumb(images_path, thumb_size):
+    """ Generate thumb image for all image files in {images_path}
     """
-    thumbs_list = [fname for fname in os.listdir(extract_path) if fname.endswith('_thumb.jpg')]
-    for filename in os.listdir(extract_path):
+    thumbs_list = [fname for fname in os.listdir(images_path) if fname.endswith('_thumb.jpg')]
+    for filename in os.listdir(images_path):
         file_thumb = filename[:-4] + "_thumb.jpg"
         if filename.endswith('.jpg') and filename not in thumbs_list and file_thumb not in thumbs_list:
             try:
-                img = cv2.imread(os.path.join(extract_path, filename))
+                img = cv2.imread(os.path.join(images_path, filename))
                 if max(img.shape) > thumb_size:
                     img, _ = resize_image_scale(img, thumb_size)
-                cv2.imwrite(os.path.join(extract_path, file_thumb), img)
+                cv2.imwrite(os.path.join(images_path, file_thumb), img)
             except:
                 log.error(f"Fail to generate image thumb: {filename}. Removing")
-                os.remove(os.path.join(extract_path, filename))
+                os.remove(os.path.join(images_path, filename))
 #----------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -608,7 +608,7 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
             raise Exception(f"Extract folder doesn't exists: {folder_path}")
 
         clear_log(folder_path, max_files)
-        generate_extract_thumbs(folder_path, thumb_size)
+        generate_images_thumb(folder_path, thumb_size)
 
         files_data = []
         file_list = [f for f in os.listdir(folder_path)]
@@ -681,6 +681,89 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
     except Exception as excp:
         log.error(f'Failing post upload_extract: {dataset_id} - {excp}')
         return None
+
+#----------------------------------------------------------------------------------------------------------------------------------
+
+def upload_feedback(app_token, dataset_id, feedback_folder, thumb_size=THUMB_SIZE):
+    try:
+        log.info(f"Upload feedback {dataset_id}")
+        folder_path = os.path.join(feedback_folder, dataset_id)
+        if not os.path.isdir(folder_path):
+            raise Exception(f"Feedback folder doesn't exists: {folder_path}")
+
+        generate_images_thumb(folder_path, thumb_size)
+
+        file_list = list(os.listdir(folder_path))
+        json_file_list = [i for i in file_list if i.endswith('_data.json')]
+        tar_files_list = []
+        for json_filename in json_file_list:
+            exp_id = json_filename[:24]
+            image_filename = f"{exp_id}.jpg"
+            image_thumb_filename = f"{exp_id}_thumb.jpg"
+            if image_filename in file_list and image_thumb_filename in file_list:
+                try:
+                    filepath = os.path.join(folder_path, json_filename)
+                    with open(filepath, 'r') as json_file:
+                        data = json.load(json_file)
+
+                        if "_id" in data:
+                            data["_id"] = {"$oid": data["_id"]}
+
+                        if "date" in data:
+                            data["date"] = {"$date": data["date"]}
+
+                        if "dataset_id" in data:
+                            data["dataset_id"] = {"$oid": data["dataset_id"]}
+
+                        tar_files_list += [
+                            json_filename,
+                            image_filename,
+                            image_thumb_filename
+                        ]
+                except:
+                    pass
+
+        if not tar_files_list:
+            log.warning(f'Cannot upload post upload_feedback: {dataset_id}. No files.')
+            return dataset_id
+
+        dest_filename = os.path.join(feedback_folder, dataset_id + ".tar.gz")
+        if os.path.isfile(dest_filename):
+            os.remove(dest_filename)
+
+        wd = os.getcwd()
+        os.chdir(folder_path)
+        with tarfile.open(dest_filename, "w:gz") as tar:
+            for filename in tar_files_list:
+                if filename.endswith('.jpg') or filename:
+                    tar.add(filename)
+
+        os.chdir(wd)
+
+        endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
+        msg_headers = {'Authorization' : f'Bearer {app_token}'}
+        url = f"{endpoint}/dataset/{dataset_id}/feedback"
+
+        files = {'feedback': open(dest_filename, 'rb')}
+
+        response = requests.post(url, files=files, headers=msg_headers)
+
+        if response.status_code != 201:
+            raise Exception(f"Failing upload extract files: {response.json()}")
+
+        os.remove(dest_filename)
+        return True
+
+    except requests.ConnectionError as error:
+        log.error(f'Failing post upload_feedback: {dataset_id}. Connection error: {error}')
+        return False
+    except requests.Timeout as error:
+        log.error(f'Failing post upload_feedback: {dataset_id}. Timeout: {error}')
+        return False
+    except Exception as excp:
+        log.error(f'Failing post upload_feedback: {dataset_id} - {excp}')
+        return False
+
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 

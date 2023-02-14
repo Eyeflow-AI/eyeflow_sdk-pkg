@@ -696,6 +696,7 @@ def upload_feedback(app_token, dataset_id, feedback_folder, thumb_size=THUMB_SIZ
         file_list = list(os.listdir(folder_path))
         json_file_list = [i for i in file_list if i.endswith('_data.json')]
         tar_files_list = []
+        feedback_files = []
         for json_filename in json_file_list:
             exp_id = json_filename[:24]
             image_filename = f"{exp_id}.jpg"
@@ -715,8 +716,8 @@ def upload_feedback(app_token, dataset_id, feedback_folder, thumb_size=THUMB_SIZ
                         if "dataset_id" in data:
                             data["dataset_id"] = {"$oid": data["dataset_id"]}
 
+                        feedback_files.append(data)
                         tar_files_list += [
-                            json_filename,
                             image_filename,
                             image_thumb_filename
                         ]
@@ -745,8 +746,12 @@ def upload_feedback(app_token, dataset_id, feedback_folder, thumb_size=THUMB_SIZ
         url = f"{endpoint}/dataset/{dataset_id}/feedback"
 
         files = {'feedback': open(dest_filename, 'rb')}
+        values = {
+            'dataset_id': dataset_id,
+            'feedback_files': feedback_files
+        }
 
-        response = requests.post(url, files=files, headers=msg_headers)
+        response = requests.post(url, data=values, files=files, headers=msg_headers)
 
         if response.status_code != 201:
             raise Exception(f"Failing upload extract files: {response.json()}")

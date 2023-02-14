@@ -745,13 +745,12 @@ def upload_feedback(app_token, dataset_id, feedback_folder, thumb_size=THUMB_SIZ
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         url = f"{endpoint}/dataset/{dataset_id}/feedback"
 
-        files = {'feedback': open(dest_filename, 'rb')}
-        values = {
-            'dataset_id': dataset_id,
-            'feedback_files': feedback_files
-        }
+        files = {
+            'feedback_files': json.dumps(feedback_files),
+            'feedback': open(dest_filename, 'rb')
+            }
 
-        response = requests.post(url, data=values, files=files, headers=msg_headers)
+        response = requests.post(url, files=files, headers=msg_headers)
 
         if response.status_code != 201:
             raise Exception(f"Failing upload extract files: {response.json()}")

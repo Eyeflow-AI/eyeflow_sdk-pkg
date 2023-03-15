@@ -179,8 +179,11 @@ def save_images_batch(images, image_path):
 #----------------------------------------------------------------------------------------------------------------------------------
 
 
-def merge_images(images):
+def merge_images(images, max_side=1920):
     max_shape = tuple(max(image.shape[x] for image in images) for x in range(3))
+    if max(max_shape) > max_side:
+        scale = float(max_side) / max(max_shape)
+        max_shape = [int(np.ceil(max_shape[0] * scale) + 5), int(np.ceil(max_shape[1] * scale) + 5), max_shape[2]]
 
     size_w = int(np.ceil(np.sqrt(len(images))))
     size_h = int(np.ceil(len(images) / size_w))
@@ -188,6 +191,9 @@ def merge_images(images):
     image_merged = np.zeros((max_shape[0] * size_h, max_shape[1] * size_w, max_shape[2]))
 
     for idx, image in enumerate(images):
+        if max(image.shape) > max_side:
+            image, scale = resize_image_scale(image, max_side)
+
         i = idx % size_w
         j = idx // size_w
         image_merged[j * h:j * h + image.shape[0], i * w:i * w + image.shape[1], :image.shape[2]] = image

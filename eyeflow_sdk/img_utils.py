@@ -191,8 +191,8 @@ def merge_images(images, max_side=1920):
     image_merged = np.zeros((max_shape[0] * size_h, max_shape[1] * size_w, max_shape[2]))
 
     for idx, image in enumerate(images):
-        if max(image.shape) > max_side:
-            image, scale = resize_image_scale(image, max_side)
+        if image.shape[0] > max_shape[0] or image.shape[1] > max_shape[1]:
+            image, scale = resize_image_pad(image, target_height=max_shape[0], target_width=max_shape[1])
 
         i = idx % size_w
         j = idx // size_w

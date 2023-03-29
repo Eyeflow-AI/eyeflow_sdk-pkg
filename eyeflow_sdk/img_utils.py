@@ -115,7 +115,7 @@ def resize_image_pad(image, target_height, target_width):
         A resized image with the target resolution and same aspect ratio.
     """
     (rows, cols) = (image.shape[0], image.shape[1])
-    target_image = np.zeros((target_height, target_width, image.shape[2]), dtype=np.float)
+    target_image = np.zeros((target_height, target_width, image.shape[2]), dtype=np.float32)
     scale = min(target_width / cols, target_height / rows)
     image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 

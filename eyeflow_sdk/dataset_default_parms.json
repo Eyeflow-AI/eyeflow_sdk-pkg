@@ -83,7 +83,7 @@
                     "cooldown": 0,
                     "monitor": "val_loss",
                     "min_delta": 0.0001,
-                    "factor": 0.2,
+                    "factor": 0.5,
                     "mode": "auto"
                 }
             },
@@ -97,35 +97,7 @@
                     "max_side": 320,
                     "channels": 1
                 },
-                "net_width": 20,
-                "anchor_parms": {
-                    "sizes": [
-                        12,
-                        24,
-                        48,
-                        96,
-                        192
-                    ],
-                    "strides": [
-                        8,
-                        16,
-                        32,
-                        64,
-                        128
-                    ],
-                    "ratios": [
-                        0.5,
-                        1,
-                        2
-                    ],
-                    "scales": [
-                        1,
-                        1.2,
-                        1.5
-                    ]
-                },
-                "negative_overlap": 0.3,
-                "positive_overlap": 0.45
+                "net_width": 20
             }
         },
         "dim_measure": {
@@ -255,7 +227,7 @@
                     "cooldown": 0,
                     "monitor": "val_loss",
                     "min_delta": 0.0001,
-                    "factor": 0.2,
+                    "factor": 0.5,
                     "mode": "auto"
                 }
             },
@@ -263,6 +235,7 @@
                 "component": "obj_location",
                 "component_id": "6178516681cbe716153175b0",
                 "patch_size": 64,
+                "min_box_area": 0.9,
                 "input_shape": {
                     "min_side": 640,
                     "max_side": 1280,
@@ -271,11 +244,10 @@
                "preprocess_mode": "caffe",
                 "backbone": "vgg7",
                 "net_width": 20,
-                "pyramid_levels": [1, 2, 3, 4],
-                "strides": [2, 4, 8, 16],
+                "pyramid_levels": [2, 3, 4],
+                "strides": [4, 8, 16],
                 "interest_sizes": [
-                    [-1, 8],
-                    [8, 16],
+                    [-1, 16],
                     [16, 32],
                     [32, 512]
                 ]

@@ -168,15 +168,22 @@ class Dataset():
 
     @staticmethod
     def load_file_from_cloud(url):
-        with requests.get(url, stream=True) as r:
-            r.raise_for_status()
-            img = b""
-            for chunk in r.iter_content(chunk_size=8192):
-                # If you have chunk encoded response uncomment 'if' and set chunk_size parameter to None.
-                #if chunk:
-                img += chunk
+        tries = 0
+        while tries < 3:
+            try:
+                with requests.get(url, stream=True) as r:
+                    r.raise_for_status()
+                    img = b""
+                    for chunk in r.iter_content(chunk_size=8192):
+                        # If you have chunk encoded response uncomment 'if' and set chunk_size parameter to None.
+                        #if chunk:
+                        img += chunk
 
-            return img
+                    return img
+            except Exception as excp:
+                tries += 1
+                if tries >= 3:
+                    raise excp
 
 
     def load_image(self, example_img):

@@ -357,7 +357,7 @@ def get_train(app_token, dataset_id, train_id, train_folder):
         ])
 
         os.remove(dest_filename)
-        return train_id
+        return train_doc.get("train_data", {})
 
     except requests.ConnectionError as error:
         log.error(f'Failing get train_id: {train_id}. Connection error: {error}')

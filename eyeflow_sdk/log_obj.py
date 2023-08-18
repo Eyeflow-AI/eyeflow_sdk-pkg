@@ -25,23 +25,23 @@ else:
         CONFIG = yaml.safe_load(ymlfile)
 #----------------------------------------------------------------------------------------------------------------------------------
 
-def setup_papertrail_handler(papertrail_cfg):
-    import socket
-    from logging.handlers import SysLogHandler
-    class ContextFilter(logging.Filter):
-        hostname = socket.gethostname()
-        application_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
-        def filter(self, record):
-            record.hostname = ContextFilter.hostname
-            record.application_name = ContextFilter.application_name
-            return True
+# def setup_papertrail_handler(papertrail_cfg):
+#     import socket
+#     from logging.handlers import SysLogHandler
+#     class ContextFilter(logging.Filter):
+#         hostname = socket.gethostname()
+#         application_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+#         def filter(self, record):
+#             record.hostname = ContextFilter.hostname
+#             record.application_name = ContextFilter.application_name
+#             return True
 
-    syslog = SysLogHandler(address=(papertrail_cfg["PAPERTRAIL_HOST"], papertrail_cfg["PAPERTRAIL_PORT"]))
-    syslog.addFilter(ContextFilter())
-    syslog.setFormatter(logging.Formatter('%(asctime)s - %(hostname)s - %(application_name)s - %(funcName)s - %(levelname)s - %(message)s', datefmt='%b %d %H:%M:%S'))
-    print(f'Log papertrail: {papertrail_cfg["PAPERTRAIL_HOST"]}:{papertrail_cfg["PAPERTRAIL_PORT"]}')
+#     syslog = SysLogHandler(address=(papertrail_cfg["PAPERTRAIL_HOST"], papertrail_cfg["PAPERTRAIL_PORT"]))
+#     syslog.addFilter(ContextFilter())
+#     syslog.setFormatter(logging.Formatter('%(asctime)s - %(hostname)s - %(application_name)s - %(funcName)s - %(levelname)s - %(message)s', datefmt='%b %d %H:%M:%S'))
+#     print(f'Log papertrail: {papertrail_cfg["PAPERTRAIL_HOST"]}:{papertrail_cfg["PAPERTRAIL_PORT"]}')
 
-    return syslog
+#     return syslog
 
 class LogObj:
     """
@@ -87,10 +87,10 @@ class LogObj:
             self.logger.addHandler(console_handler)
 
             # if papertrail configured, create handler
-            if "papertrail" in CONFIG["log"]:
-                papertrail_handler = setup_papertrail_handler(CONFIG["log"]["papertrail"])
-                self.logger.addHandler(papertrail_handler)
-                self.logger.setLevel(logging.INFO)
+            # if "papertrail" in CONFIG["log"]:
+            #     papertrail_handler = setup_papertrail_handler(CONFIG["log"]["papertrail"])
+            #     self.logger.addHandler(papertrail_handler)
+            #     self.logger.setLevel(logging.INFO)
 
 
         def __getattr__(self, name):

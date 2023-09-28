@@ -12,6 +12,7 @@ import datetime
 import json
 import cv2
 import requests
+import shutil
 import tarfile
 import jwt
 
@@ -327,7 +328,7 @@ def upload_model(
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 
-def get_train(app_token, dataset_id, train_id, train_folder):
+def get_train(app_token, dataset_id, train_id, train_folder, environment_id=None):
     try:
         log.info(f"Get train {dataset_id}-{train_id}")
         folder_path = Path(train_folder + '/' + dataset_id + '/' + train_id)
@@ -336,6 +337,9 @@ def get_train(app_token, dataset_id, train_id, train_folder):
 
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         url = f"{endpoint}/model-hist/{dataset_id}/{train_id}"
+        if environment_id is not None:
+            url += f"?environment_id={environment_id}"
+
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         payload = {"download_url": True}
         response = requests.get(url, headers=msg_headers, params=payload)
@@ -609,15 +613,22 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
             raise Exception(f"Extract folder doesn't exists: {folder_path}")
 
         clear_log(folder_path, max_files)
-        generate_images_thumb(folder_path, thumb_size)
+
+        tmp_path = os.path.join(extract_folder, "tmp", dataset_id)
+        if os.path.isdir(folder_path):
+            shutil.rmtree(tmp_path)
+
+        shutil.copytree(folder_path, tmp_path)
+
+        generate_images_thumb(tmp_path, thumb_size)
 
         files_data = []
-        file_list = [f for f in os.listdir(folder_path)]
+        file_list = [f for f in os.listdir(tmp_path)]
         for filename in file_list:
             exp_id = filename[:24]
             if filename.endswith('_data.json') and (exp_id + ".jpg") in file_list and (exp_id + "_thumb.jpg") in file_list:
                 try:
-                    filepath = os.path.join(folder_path, filename)
+                    filepath = os.path.join(tmp_path, filename)
                     with open(filepath, 'r') as json_file:
                         data = json.load(json_file)
 
@@ -639,7 +650,7 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
             "files_data": files_data
         }
 
-        with open(os.path.join(folder_path, 'extract_files.json'), 'w', newline='', encoding='utf8') as file_p:
+        with open(os.path.join(tmp_path, 'extract_files.json'), 'w', newline='', encoding='utf8') as file_p:
             json.dump(extract_files, file_p, ensure_ascii=False, default=str)
 
         dest_filename = os.path.join(extract_folder, dataset_id + ".tar.gz")
@@ -647,9 +658,9 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
             os.remove(dest_filename)
 
         wd = os.getcwd()
-        os.chdir(folder_path)
+        os.chdir(tmp_path)
         with tarfile.open(dest_filename, "w:gz") as tar:
-            for filename in os.listdir(folder_path):
+            for filename in os.listdir(tmp_path):
                 if filename.endswith('.jpg') or filename == 'extract_files.json':
                     tar.add(filename)
 
@@ -671,6 +682,8 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
             raise Exception(f"Failing upload extract files: {response.json()}")
 
         os.remove(dest_filename)
+        shutil.rmtree(tmp_path)
+
         return dataset_id
 
     except requests.ConnectionError as error:

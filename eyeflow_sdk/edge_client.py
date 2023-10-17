@@ -15,6 +15,7 @@ import requests
 import shutil
 import tarfile
 import jwt
+import traceback
 
 from eyeflow_sdk.log_obj import CONFIG, log
 from eyeflow_sdk.img_utils import resize_image_scale
@@ -615,7 +616,7 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
         clear_log(folder_path, max_files)
 
         tmp_path = os.path.join(extract_folder, "tmp", dataset_id)
-        if os.path.isdir(folder_path):
+        if os.path.isdir(tmp_path):
             shutil.rmtree(tmp_path)
 
         shutil.copytree(folder_path, tmp_path)
@@ -679,7 +680,7 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
         response = requests.post(url, files=files, data=values, headers=msg_headers)
 
         if response.status_code != 201:
-            raise Exception(f"Failing upload extract files: {response.json()}")
+            raise Exception(f"Failing upload extract files: {response}")
 
         os.remove(dest_filename)
         shutil.rmtree(tmp_path)
@@ -694,6 +695,7 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
         return None
     except Exception as excp:
         log.error(f'Failing post upload_extract: {dataset_id} - {excp}')
+        log.error(traceback.format_exc())
         return None
 
 #----------------------------------------------------------------------------------------------------------------------------------

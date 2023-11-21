@@ -10,7 +10,6 @@ import json
 import random
 import copy
 import datetime
-import pytz
 import dateutil.parser
 import requests
 
@@ -95,7 +94,7 @@ class Dataset():
         train_parms = {}
         dnn_parms = {}
         dataset_default_parms = Dataset.get_dataset_default_parms()
-        if dataset_default_parms:
+        if dataset_default_parms and self.parms["info"]["type"] in dataset_default_parms["default_parms"]:
             train_parms = dataset_default_parms["default_parms"][self.parms["info"]["type"]]["train_parms"]
             dnn_parms = dataset_default_parms["default_parms"][self.parms["info"]["type"]]["dnn_parms"]
 
@@ -120,7 +119,7 @@ class Dataset():
 
         if "train_parms" in self.parms:
             train_parms.update(self.parms["train_parms"])
-            if not input_shape:
+            if not input_shape and "input_shape" in self.parms["train_parms"]:
                 input_shape = copy.deepcopy(self.parms["train_parms"]["input_shape"])
             if "input_shape" in train_parms:
                 del train_parms["input_shape"]
@@ -316,7 +315,7 @@ class Dataset():
 
         export_data = {
             "export_version": "2",
-            "export_date": pytz.utc.localize(datetime.datetime.now()),
+            "export_date": datetime.datetime.now(datetime.timezone.utc),
             "dataset": self.dataset_name,
             "dataset_id": self.id,
             "num_examples": len(self.examples),

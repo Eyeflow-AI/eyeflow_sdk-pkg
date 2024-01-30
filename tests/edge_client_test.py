@@ -1,8 +1,77 @@
+import os
 import sys
-import pytz
-from ..eyeflow_sdk.edge_client import *
-from ..eyeflow_sdk.log_obj import log, CONFIG
+import json
+import datetime
+from pymongo.mongo_client import MongoClient
+from bson.objectid import ObjectId
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../eyeflow_sdk"))
+
+from edge_client import *
+from log_obj import log, CONFIG
 import jwt
+# ---------------------------------------------------------------------------------------------------------------------------------
+
+def get_token(environment_name):
+    cred_file = os.path.join(os.environ['HOME'], ".eyeflow", "env_credentials_dev.json")
+    # cred_file = os.path.join(os.environ['HOME'], ".eyeflow", "env_credentials_beta.json")
+    # cred_file = os.path.join(os.environ['HOME'], ".eyeflow", "env_credentials_prod.json")
+    with open(cred_file) as fp:
+        credentials = json.load(fp)
+
+    db_auth_client = MongoClient(credentials["atlas"]["db_url"])
+    db_auth = db_auth_client["eyeflow-auth"]
+
+    src_credentials = db_auth.environment.find_one({"name": environment_name})
+    if not src_credentials:
+        raise Exception(f"Environment not found {environment_name}")
+
+    job_id = ObjectId()
+    token_id = ObjectId()
+
+    token_payload = {
+        "token_id": str(token_id),
+        "job_id": str(job_id),
+        "app_id": "608b0ac5a40cba9bb25206f7",
+        "app_name": "dataset_train_job",
+        "environment_id": str(src_credentials["_id"]),
+        "environment_name": environment_name,
+
+        "endpoint": credentials["endpoint"],
+        "iat": datetime.datetime.utcnow(),
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=600)
+    }
+
+    key_file = credentials["key_file"]
+    with open(key_file, 'r') as fp:
+        private_key = fp.read()
+
+    job_token = jwt.encode(token_payload, private_key, algorithm='RS256').decode('utf-8')
+
+    edge_token = {
+        "_id": token_id,
+        "active": True,
+        "token": job_token,
+        "payload": token_payload,
+        "token_key": ObjectId(credentials["edge_token_key"]),
+        "acl_type": "user",
+        "info": {
+            "creation_date": datetime.datetime.now(datetime.timezone.utc)
+        }
+    }
+
+    db_auth.edge_tokens.insert_one(edge_token)
+
+    # db_auth.edge_tokens.delete_one({"_id": token_id})
+
+    db_config = src_credentials["db_resource"]
+    if "-pri" in db_config["db_url"]:
+        idx = db_config["db_url"].index("-pri")
+        db_config["db_url"] = db_config["db_url"][:idx] + db_config["db_url"][idx + 4:]
+
+    db_src = MongoClient(db_config["db_url"])[db_config["db_name"]]
+
+    return job_token, src_credentials, db_src
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -28,93 +97,18 @@ def test_get_dataset(app_token):
 
 def test_get_model(app_token):
     log.info("Testing get_model")
-    dataset_id = "5e46bb04c2414cbcbb4fdb2e"
+    dataset_id = "5d420731ddfafbbbdeb17277"
+    if os.path.isfile(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id + ".json")):
+        os.remove(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id + ".json"))
     if os.path.isfile(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id, dataset_id + ".json")):
         os.remove(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id, dataset_id + ".json"))
 
     res = get_model(app_token, dataset_id, CONFIG["file-service"]["model"]["local_folder"])
     assert(os.path.isfile(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id, dataset_id + ".json")))
-    assert(res == dataset_id)
+    assert(res["dataset_id"] == dataset_id)
     dataset_id = "6f23184163f83e2fea546acd"
     res = get_model(app_token, dataset_id, CONFIG["file-service"]["model"]["local_folder"])
-    assert(res is None)
-
-
-def test_upload_model(app_token):
-    log.info("Testing upload_model")
-    dataset_id = "627b001ad3380267f1dedc84"
-    if not os.path.isfile(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id, dataset_id + ".json")):
-        raise Exception(f"Model not found {dataset_id}")
-
-    with open(os.path.join(CONFIG["file-service"]["model"]["local_folder"], dataset_id, f"{dataset_id}.json")) as fp:
-        dataset_data = json.load(fp)
-
-    train_id = dataset_data["train_id"]
-    train_date = dataset_data["train_date"]
-    ckpt = f'/opt/eyeflow/data/train/{dataset_id}/{train_date}/check_point/'
-
-    if not os.path.isfile(os.path.join(ckpt, dataset_id + ".json")):
-        raise Exception(f"Hist not found {ckpt}")
-
-    model_info = {
-        "_id": {"$oid": dataset_id},
-        "size": 0,
-        "train_parms": {"dataset": "parms"},
-        "train_id": {"$oid": train_id},
-        "train_date": {"$date": train_date}
-    }
-
-    train_info = {
-        "size": 0,
-        "train_parms": {"dataset": "parms"},
-        "train_id": {"$oid": train_id},
-        "train_history": [],
-        "train_date": {"$date": train_date}
-    }
-
-    upload_model(
-        app_token,
-        dataset_id,
-        model_info,
-        CONFIG["file-service"]["model"]["local_folder"],
-        train_id,
-        train_info,
-        ckpt
-    )
-
-
-def test_get_train(app_token):
-    log.info("Testing get_train")
-    dataset_id = "5f2317bea6dacd7984e5baf5"
-    train_id = "614ca39fd81d2a6ca94fcfdb"
-    if os.path.isfile(os.path.join(CONFIG["file-service"]["model-hist"]["local_folder"], dataset_id, dataset_id + ".json")):
-        os.remove(os.path.join(CONFIG["file-service"]["model-hist"]["local_folder"], dataset_id, dataset_id + ".json"))
-
-    res = get_train(app_token, dataset_id, train_id, CONFIG["file-service"]["model-hist"]["local_folder"])
-    assert(os.path.isfile(os.path.join(CONFIG["file-service"]["model-hist"]["local_folder"], dataset_id, train_id, dataset_id + ".json")))
-    assert(res == train_id)
-    dataset_id = "6f23184163f83e2fea546acd"
-    res = get_train(app_token, dataset_id, train_id, CONFIG["file-service"]["model-hist"]["local_folder"])
-    assert(res is None)
-
-
-def test_insert_train_event(app_token):
-    log.info("Testing insert_train_event")
-    dataset_id = "5f2317bea6dacd7984e5baf5"
-    train_id = "614ca39fd81d2a6ca94fcfdb"
-    event = {
-        "train_id": {"$oid": train_id},
-        "dataset": {"$oid": dataset_id},
-        "dataset_name": "dataset_name",
-        "dataset_type": "object_detection",
-        "time": {"$date": pytz.utc.localize(datetime.datetime.now())},
-        "event": "train_start",
-        "train_parms": {"parms": "train_parms"},
-        "total_epochs": 10,
-        "steps_per_epoch": 100
-    }
-    res = insert_train_event(app_token, event)
-    assert(res)
+    assert(res["train_id"] is None)
 
 
 def test_get_flow_component(app_token):
@@ -187,16 +181,13 @@ def test_upload_video(app_token):
 
 
 if __name__ == "__main__":
-    app_token = sys.args[1]
+    job_token, src_credentials, db_src = get_token("SiliconLife.AI")
 
-    test_get_dataset(app_token)
-    test_get_flow(app_token)
-    test_get_flow_component(app_token)
-    test_get_model_component(app_token)
-    test_upload_extract(app_token)
-    test_get_video(app_token)
-    test_upload_video(app_token)
-    test_upload_model(app_token)
-    test_get_model(app_token)
-    test_get_train(app_token)
-    test_insert_train_event(app_token)
+    test_get_dataset(job_token)
+    test_get_flow(job_token)
+    test_get_flow_component(job_token)
+    test_get_model_component(job_token)
+    test_upload_extract(job_token)
+    test_get_video(job_token)
+    test_upload_video(job_token)
+    test_get_model(job_token)

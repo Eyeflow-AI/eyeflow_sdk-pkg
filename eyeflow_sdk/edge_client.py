@@ -6,7 +6,6 @@ Author: Alex Sobral de Freitas
 """
 
 import os
-from subprocess import call
 from pathlib import Path
 import datetime
 import json
@@ -138,7 +137,7 @@ def get_flow(app_token, flow_id):
 def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
     local_doc = None
     try:
-        log.info(f"Get model {dataset_id}")
+        # log.info(f"Check model {dataset_id}")
 
         local_cache = os.path.join(model_folder, dataset_id + '.json')
         if os.path.isfile(local_cache):
@@ -146,7 +145,7 @@ def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
                 local_doc = json.load(fp)
 
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
-        url = f"{endpoint}/published-model/{dataset_id}/"
+        url = f"{endpoint}/published-model-v2/{dataset_id}/"
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         payload = {"download_url": False}
         response = requests.get(url, headers=msg_headers, params=payload)
@@ -155,7 +154,7 @@ def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
             if local_doc:
                 return local_doc
 
-            log.error(f"Failing get model: {response.json()}")
+            log.error(f"Failing get model: {url} - {response.json()}")
             return None
 
         model_doc = response.json()
@@ -174,22 +173,20 @@ def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
 
         model_doc = response.json()
 
-        if "model_list" in model_doc:
-            for model_data in model_doc["model_list"]:
-                if model_data["info"].get("type", "") == model_type:
-                    download_url = model_data["download_url"]
-                    dest_filename = os.path.join(model_folder, model_data["info"]["file"])
-                    break
-            else:
-                log.error(f"Did not find model type {model_type} in {dataset_id} document")
-                return None
-        elif "download_url" in model_doc:
-            download_url = model_doc["download_url"]
-            dest_filename = os.path.join(model_folder, dataset_id + ".tar.gz")
-        else:
-            log.error("Get model response dont have model_list or download_url keys")
-            return None
+        if "model_list" not in model_doc:
+            log.error(f"Get model response dont have model_list key: {model_doc}")
+            raise Exception(f"Get model response dont have model_list key: {model_doc}")
 
+        for model_data in model_doc["model_list"]:
+            if model_data.get("type", "") == model_type:
+                download_url = model_data["download_url"]
+                dest_filename = os.path.join(model_folder, model_data["file"])
+                break
+        else:
+            log.error(f"Did not find model type {model_type} in {dataset_id} document - {model_doc}")
+            return model_doc
+
+        log.info(f"Download model {dataset_id} - Train date: {model_doc['date']}")
         download_file(download_url, dest_filename)
 
         # expand_file
@@ -199,11 +196,8 @@ def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
             if not folder_path.is_dir():
                 folder_path.mkdir(parents=True, exist_ok=True)
 
-            call([
-                "tar",
-                "-xzf", dest_filename,
-                "--directory", folder_path
-            ])
+            with tarfile.open(dest_filename, 'r') as tar:
+                tar.extractall(folder_path)
 
             os.remove(dest_filename)
 
@@ -229,177 +223,6 @@ def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
         return None
     except Exception as excp:
         log.error(f'Failing get model dataset_id: {dataset_id} - {excp}')
-        return None
-# ---------------------------------------------------------------------------------------------------------------------------------
-
-
-def upload_model(
-    app_token,
-    dataset_id,
-    model_info,
-    model_folder,
-    train_id,
-    train_info,
-    hist_folder
-):
-    try:
-        model_filename = os.path.join(model_folder, dataset_id + ".tar.gz")
-        if os.path.isfile(model_filename):
-            os.remove(model_filename)
-
-        folder_path = os.path.join(model_folder, dataset_id)
-        wd = os.getcwd()
-        os.chdir(folder_path)
-        files_list = get_list_files_info("./")
-        with tarfile.open(model_filename, "w:gz") as tar:
-            for filename in files_list:
-                tar.add(filename)
-
-        os.chdir(wd)
-
-        hist_filename = os.path.join(hist_folder, train_id + ".tar.gz")
-        if os.path.isfile(hist_filename):
-            os.remove(hist_filename)
-
-        wd = os.getcwd()
-        os.chdir(hist_folder)
-        files_list = get_list_files_info("./")
-        with tarfile.open(hist_filename, "w:gz") as tar:
-            for filename in files_list:
-                if not filename.endswith('.jpg'):
-                    tar.add(filename)
-
-        os.chdir(wd)
-
-        endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
-        msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        url = f"{endpoint}/model/{dataset_id}/{train_id}"
-
-        files = {
-            'model_tf_file': open(model_filename, 'rb'),
-            'train_file': open(hist_filename, 'rb')
-        }
-
-        values = {
-            "models": {"info": model_info, "model_list": [
-                {"name": "model_tf_file", "info": {"type": "tensorflow", "size":  os.stat(model_filename).st_size}},
-            ]},
-            "train": {"info": train_info, "name": "train_file"}
-        }
-
-        onnx_filename = os.path.join(model_folder, dataset_id + ".onnx")
-        if os.path.isfile(onnx_filename):
-            values["models"]["model_list"].append(
-                {"name": "model_onnx_file", "info": {"type": "onnx", "size": os.stat(onnx_filename).st_size}}
-            )
-            files["model_onnx_file"] = open(onnx_filename, 'rb')
-
-        test_batch_filename = os.path.join(hist_folder, "test_batch-" + dataset_id + ".jpg")
-        if os.path.isfile(test_batch_filename):
-            files['test_batch'] = open(test_batch_filename, 'rb')
-
-        test_augmentation_filename = os.path.join(hist_folder, "test_augmentation-" + dataset_id + ".jpg")
-        if os.path.isfile(test_augmentation_filename):
-            files['test_augmentation'] = open(test_augmentation_filename, 'rb')
-
-        values["models"]["info"]["size"] = sum([i["info"]["size"] for i in values["models"]["model_list"]])
-        values["train"]["info"]["size"] = os.stat(hist_filename).st_size
-
-        values["models"] = json.dumps(values["models"], default=str)
-        values["train"] = json.dumps(values["train"], default=str)
-        response = requests.post(url, files=files, data=values, headers=msg_headers)
-
-        os.remove(model_filename)
-        os.remove(hist_filename)
-
-        if response.status_code != 201:
-            raise Exception(f"Failing upload model. Response Json: {response.json()}")
-
-        return dataset_id
-
-    except requests.ConnectionError as error:
-        log.error(f'Failing uploading model: {dataset_id}. Connection error: {error}')
-        return None
-    except requests.Timeout as error:
-        log.error(f'Failing uploading model: {dataset_id}. Timeout: {error}')
-        return None
-    except Exception as excp:
-        log.error(f'Failing uploading model: {dataset_id} - {excp}')
-        return None
-# ---------------------------------------------------------------------------------------------------------------------------------
-
-
-def get_train(app_token, dataset_id, train_id, train_folder, environment_id=None):
-    try:
-        log.info(f"Get train {dataset_id}-{train_id}")
-        folder_path = Path(train_folder + '/' + dataset_id + '/' + train_id)
-        if not folder_path.is_dir():
-            folder_path.mkdir(parents=True, exist_ok=True)
-
-        endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
-        url = f"{endpoint}/model-hist/{dataset_id}/{train_id}"
-        if environment_id is not None:
-            url += f"?environment_id={environment_id}"
-
-        msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        payload = {"download_url": True}
-        response = requests.get(url, headers=msg_headers, params=payload)
-
-        if response.status_code != 200:
-            log.error(f"Failing get train: {response.json()}")
-            return None
-
-        train_doc = response.json()
-
-        dest_filename = os.path.join(str(folder_path), train_id + ".tar.gz")
-        download_file(train_doc["download_url"], dest_filename)
-
-        # expand_file
-        call([
-            "tar",
-            "-xf", dest_filename,
-            "--directory", str(folder_path)
-        ])
-
-        os.remove(dest_filename)
-        return train_doc.get("train_data", {})
-
-    except requests.ConnectionError as error:
-        log.error(f'Failing get train_id: {train_id}. Connection error: {error}')
-        return None
-    except requests.Timeout as error:
-        log.error(f'Failing get train_id: {train_id}. Timeout: {error}')
-        return None
-    except Exception as excp:
-        log.error(f'Failing get train_id: {train_id} - {excp}')
-        return None
-# ---------------------------------------------------------------------------------------------------------------------------------
-
-
-def insert_train_event(app_token, event):
-    try:
-        endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
-        msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        url = f"{endpoint}/train/event"
-
-        data = {
-            "event": json.dumps(event, default=str)
-        }
-        response = requests.post(url, data=data, headers=msg_headers)
-
-        if response.status_code != 201:
-            raise Exception(f"Failing insert event: {response.json()}")
-
-        return True
-
-    except requests.ConnectionError as error:
-        log.error(f'Failing inserting train event. Connection error: {error}')
-        return None
-    except requests.Timeout as error:
-        log.error(f'Failing inserting train event. Timeout: {error}')
-        return None
-    except Exception as excp:
-        log.error(f'Failing inserting train event - {excp}')
         return None
 # ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -451,11 +274,8 @@ def get_flow_component(app_token, flow_component_id, flow_component_folder):
         download_file(flow_component_doc["download_url"], dest_filename)
 
         # expand_file
-        call([
-            "tar",
-            "-xf", dest_filename,
-            "--directory", folder_path
-        ])
+        with tarfile.open(dest_filename, 'r') as tar:
+            tar.extractall(folder_path)
 
         os.remove(dest_filename)
 
@@ -534,11 +354,8 @@ def get_model_component(app_token, model_component_id, model_component_folder):
         download_file(model_component_doc["download_url"], dest_filename)
 
         # expand_file
-        call([
-            "tar",
-            "-xf", dest_filename,
-            "--directory", folder_path
-        ])
+        with tarfile.open(dest_filename, 'r') as tar:
+            tar.extractall(folder_path)
 
         os.remove(dest_filename)
 
@@ -697,7 +514,6 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
         log.error(f'Failing post upload_extract: {dataset_id} - {excp}')
         log.error(traceback.format_exc())
         return None
-
 #----------------------------------------------------------------------------------------------------------------------------------
 
 def upload_feedback(app_token, dataset_id, feedback_folder, thumb_size=THUMB_SIZE):
@@ -783,7 +599,6 @@ def upload_feedback(app_token, dataset_id, feedback_folder, thumb_size=THUMB_SIZ
     except Exception as excp:
         log.error(f'Failing post upload_feedback: {dataset_id} - {excp}')
         return False
-
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 

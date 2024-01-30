@@ -48,7 +48,7 @@ class FileAccess():
             self._cloud_obj = comp_lib.Connector(**cloud_parms)
 
     @staticmethod
-    def _get_list_files_info(folder, prefix='', sufix=''):
+    def get_list_files_info(folder, prefix='', sufix=''):
         file_list = []
         for filename in os.listdir(folder):
             if os.path.isfile(os.path.join(folder, filename)) \
@@ -64,7 +64,7 @@ class FileAccess():
                 file_list.append(file_info)
             elif os.path.isdir(os.path.join(folder, filename)):
                 subfolder = os.path.join(folder, filename)
-                subfolder_files = FileAccess._get_list_files_info(subfolder, prefix, sufix)
+                subfolder_files = FileAccess.get_list_files_info(subfolder, prefix, sufix)
                 for finfo in subfolder_files:
                     finfo["filename"] = os.path.join(os.path.split(subfolder)[1], finfo["filename"])
 
@@ -88,7 +88,7 @@ class FileAccess():
             raise Exception(f"'origin'={origin} must be one of: ('cloud', 'local', 'both')")
 
         try:
-            local_files = self._get_list_files_info(self._local_folder)
+            local_files = self.get_list_files_info(self._local_folder)
             cloud_files = self._cloud_obj.list_files_info(folder=self._cloud_folder, resource_id=self.resource_id)
 
             if origin in ["cloud", "both"]:
@@ -179,7 +179,7 @@ class FileAccess():
         """
         Purge local and cloud files to max_files from de older to newer
         """
-        local_files = self._get_list_files_info(self._local_folder)
+        local_files = self.get_list_files_info(self._local_folder)
         if len(local_files) > max_files:
             date_list = [(l_file["filename"], l_file["modified_date"]) for l_file in local_files]
             exclude_list = sorted(date_list, key=lambda x: x[1])[:len(local_files) - max_files]

@@ -311,6 +311,49 @@
                     [32, 512]
                 ]
             }
+        },
+        "mask_map": {
+            "train_parms": {
+              "epochs": 10,
+              "steps_per_epoch": 200,
+              "batch_size": 5,
+              "prob_random_example": 0.7,
+              "val_size": 0.1,
+              "test_size": 0.1,
+              "optimizer_parms": {
+                "beta_2": 0.999,
+                "beta_1": 0.9,
+                "learning_rate": 0.001,
+                "amsgrad": false
+              },
+              "save_checkpoint": {
+                "monitor": "binary_accuracy",
+                "mode": "max"
+              },
+              "early_stopping": {
+                "patience": 10,
+                "monitor": "val_loss",
+                "mode": "min",
+                "min_delta": 0,
+                "verbose": 1
+              },
+              "reduce_lr_on_plateau": {
+                "min_lr": 0.000001,
+                "patience": 3,
+                "cooldown": 0,
+                "monitor": "val_loss",
+                "min_delta": 0.0001,
+                "factor": 0.5,
+                "mode": "auto"
+              }
+            },
+            "dnn_parms": {
+              "component": "mask_check",
+              "component_id": "64cac0b7f2a8a3c24bf3ef77",
+              "max_points": 34,
+              "net_width": 200,
+              "side_size": 1024
+            }
         }
     }
 }

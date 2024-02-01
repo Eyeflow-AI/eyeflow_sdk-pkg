@@ -191,8 +191,11 @@ def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
 
         # expand_file
         if (dest_filename.endswith('tar.gz')):
+            if model_type == "onnx":
+                folder_path = Path(model_folder)
+            else:
+                folder_path = Path(model_folder + '/' + dataset_id)
 
-            folder_path = Path(model_folder + '/' + dataset_id)
             if not folder_path.is_dir():
                 folder_path.mkdir(parents=True, exist_ok=True)
 

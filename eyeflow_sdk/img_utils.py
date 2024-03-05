@@ -213,19 +213,17 @@ def get_draw_font(draw_obj, text, max_height=None, max_width=None):
         draw_font = ImageFont.truetype(font_name, ini_size)
 
     if max_height is not None:
-        end_size = max_height
-        dim = 1
+        draw_font = ImageFont.truetype(font_name, int(max_height))
     elif max_width is not None:
         end_size = max_width
-        dim = 0
+
+        txt_size = draw_obj.textlength(text, font=draw_font)
+        while txt_size < end_size:
+            ini_size += 1
+            draw_font = ImageFont.truetype(font_name, ini_size)
+            txt_size = draw_obj.textlength(text, font=draw_font)
     else:
         raise Exception("Must define max_height or max_width")
-
-    txt_size = draw_obj.textsize(text, font=draw_font)
-    while txt_size[dim] < end_size:
-        ini_size += 1
-        draw_font = ImageFont.truetype(font_name, ini_size)
-        txt_size = draw_obj.textsize(text, font=draw_font)
 
     return draw_font
 #----------------------------------------------------------------------------------------------------------------------------------

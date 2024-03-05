@@ -39,7 +39,8 @@ def parse_cmd_roughly(args):
 def device_status(device_index):
     handle = nv.nvmlDeviceGetHandleByIndex(device_index)
     device_name = nv.nvmlDeviceGetName(handle)
-    device_name = device_name.decode('UTF-8')
+    if isinstance(device_name, bytes):
+        device_name = device_name.decode('UTF-8')
     nv_procs = nv.nvmlDeviceGetComputeRunningProcesses(handle)
     utilization = nv.nvmlDeviceGetUtilizationRates(handle).gpu
     clock_mhz = nv.nvmlDeviceGetClockInfo(handle, nv.NVML_CLOCK_SM)

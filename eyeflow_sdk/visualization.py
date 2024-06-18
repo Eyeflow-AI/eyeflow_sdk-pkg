@@ -270,8 +270,8 @@ def draw_roi(draw_obj, draw_font, offset, prediction):
             draw_obj.line([(x_min, y_max), (x_min, y_min)], fill=color, width=width)
 
             display_txt = '{} - {:.01f}'.format(det["label"], det["confidence"])
-            txt_size = draw_obj.textsize(display_txt, font=draw_font)
-            y_pos = max(0, y_min - txt_size[1])
+            txt_size = draw_obj.textlength(display_txt, font=draw_font)
+            y_pos = max(0, y_min - txt_size)
 
             draw_obj.text((x_min + 1, y_pos + 1), display_txt, (0, 0, 0), font=draw_font)
             draw_obj.text((x_min, y_pos), display_txt, color, font=draw_font)

@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="eyeflow_sdk",
-    version="1.1.23",
+    version="1.2.4",
     author="Eyeflow.AI",
     author_email="support@eyeflow.ai",
     description="Functions and classes for development of Eyeflow Applications",
@@ -39,5 +39,5 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.10',
 )

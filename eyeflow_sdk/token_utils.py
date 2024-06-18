@@ -57,7 +57,7 @@ def get_plat_token(platform, environment_name, exp_minutes=600):
     with open(key_file, 'r') as fp:
         private_key = fp.read()
 
-    job_token = jwt.encode(token_payload, private_key, algorithm='RS256').decode('utf-8')
+    job_token = jwt.encode(token_payload, private_key, algorithm='RS256')
 
     edge_token = {
         "_id": token_id,

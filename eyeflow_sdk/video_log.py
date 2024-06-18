@@ -9,7 +9,6 @@ import os
 
 import json
 import datetime
-import pytz
 import random
 import cv2
 from bson import ObjectId
@@ -81,7 +80,7 @@ class VideoLog(object):
 
                 img_data = {
                     "_id": obj_id,
-                    "date": pytz.utc.localize(datetime.datetime.now()),
+                    "date": datetime.datetime.now(datetime.timezone.utc),
                     "img_height": img.shape[0],
                     "img_width": img.shape[1],
                     "file_size": file_stat_img.st_size,

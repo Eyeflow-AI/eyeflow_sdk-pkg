@@ -18,6 +18,10 @@ import traceback
 
 from eyeflow_sdk.log_obj import CONFIG, log
 from eyeflow_sdk.img_utils import resize_image_scale
+
+proxies = {}
+if "proxies" in CONFIG:
+    proxies = CONFIG["proxies"]
 # ---------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -39,7 +43,7 @@ def get_list_files_info(folder):
 
 def download_file(url, local_filename):
     os.makedirs(os.path.dirname(local_filename), exist_ok=True)
-    with requests.get(url, stream=True) as r:
+    with requests.get(url, stream=True, proxies=proxies) as r:
         r.raise_for_status()
 
         if os.path.isfile(local_filename):
@@ -59,7 +63,7 @@ def get_dataset(app_token, dataset_id):
 
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        response = requests.get(f"{endpoint}/dataset/{dataset_id}", headers=msg_headers)
+        response = requests.get(f"{endpoint}/dataset/{dataset_id}", headers=msg_headers, proxies=proxies)
 
         if response.status_code != 200:
             log.error(f"Failing get dataset: {response.json()}")
@@ -95,7 +99,7 @@ def get_flow(app_token, flow_id):
 
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        response = requests.get(f"{endpoint}/flow/{flow_id}", headers=msg_headers)
+        response = requests.get(f"{endpoint}/flow/{flow_id}", headers=msg_headers, proxies=proxies)
 
         if response.status_code != 200:
             log.error(f"Failing get flow from edge: {response.json()}")
@@ -148,7 +152,7 @@ def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
         url = f"{endpoint}/published-model-v2/{dataset_id}/"
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         payload = {"download_url": False}
-        response = requests.get(url, headers=msg_headers, params=payload)
+        response = requests.get(url, headers=msg_headers, params=payload, proxies=proxies)
 
         if response.status_code != 200:
             if local_doc:
@@ -162,7 +166,7 @@ def get_model(app_token, dataset_id, model_folder, model_type="tensorflow"):
             return local_doc
 
         payload = {"download_url": True}
-        response = requests.get(url, headers=msg_headers, params=payload)
+        response = requests.get(url, headers=msg_headers, params=payload, proxies=proxies)
 
         if response.status_code != 200:
             if local_doc:
@@ -248,7 +252,7 @@ def get_flow_component(app_token, flow_component_id, flow_component_folder):
         url = f"{endpoint}/flow-component/{flow_component_id}"
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         payload = {"download_url": False}
-        response = requests.get(url, headers=msg_headers, params=payload)
+        response = requests.get(url, headers=msg_headers, params=payload, proxies=proxies)
 
         if response.status_code != 200:
             if local_doc:
@@ -262,7 +266,7 @@ def get_flow_component(app_token, flow_component_id, flow_component_folder):
             return local_doc
 
         payload = {"download_url": True}
-        response = requests.get(url, headers=msg_headers, params=payload)
+        response = requests.get(url, headers=msg_headers, params=payload, proxies=proxies)
 
         if response.status_code != 200:
             if local_doc:
@@ -328,7 +332,7 @@ def get_model_component(app_token, model_component_id, model_component_folder):
         url = f"{endpoint}/model-component/{model_component_id}"
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         payload = {"download_url": False}
-        response = requests.get(url, headers=msg_headers, params=payload)
+        response = requests.get(url, headers=msg_headers, params=payload, proxies=proxies)
 
         if response.status_code != 200:
             if local_doc:
@@ -342,7 +346,7 @@ def get_model_component(app_token, model_component_id, model_component_folder):
             return local_doc
 
         payload = {"download_url": True}
-        response = requests.get(url, headers=msg_headers, params=payload)
+        response = requests.get(url, headers=msg_headers, params=payload, proxies=proxies)
 
         if response.status_code != 200:
             if local_doc:
@@ -497,7 +501,7 @@ def upload_extract(app_token, dataset_id, extract_folder, max_files=MAX_EXTRACT_
             'extract_files': extract_files
         }
 
-        response = requests.post(url, files=files, data=values, headers=msg_headers)
+        response = requests.post(url, files=files, data=values, headers=msg_headers, proxies=proxies)
 
         if response.status_code != 201:
             raise Exception(f"Failing upload extract files: {response}")
@@ -585,7 +589,7 @@ def upload_feedback(app_token, dataset_id, feedback_folder, thumb_size=THUMB_SIZ
             'feedback': open(dest_filename, 'rb')
             }
 
-        response = requests.post(url, files=files, headers=msg_headers)
+        response = requests.post(url, files=files, headers=msg_headers, proxies=proxies)
 
         if response.status_code != 201:
             raise Exception(f"Failing upload extract files: {response.json()}")
@@ -621,7 +625,7 @@ def get_video(app_token, video_id, video_folder):
         url = f"{endpoint}/video/{video_id}"
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
         payload = {"download_url": False}
-        response = requests.get(url, headers=msg_headers, params=payload)
+        response = requests.get(url, headers=msg_headers, params=payload, proxies=proxies)
 
         if response.status_code != 200:
             if local_doc:
@@ -635,7 +639,7 @@ def get_video(app_token, video_id, video_folder):
             return local_doc
 
         payload = {"download_url": True}
-        response = requests.get(url, headers=msg_headers, params=payload)
+        response = requests.get(url, headers=msg_headers, params=payload, proxies=proxies)
 
         if response.status_code != 200:
             if local_doc:
@@ -694,7 +698,7 @@ def upload_video(app_token, video_id, video_file_annotation, video_file, output_
             "annotations": json.dumps(video_file_annotation, default=str)
         }
 
-        response = requests.post(url, files=files, data=values, headers=msg_headers)
+        response = requests.post(url, files=files, data=values, headers=msg_headers, proxies=proxies)
 
         if response.status_code != 201:
             raise Exception(f"Failing upload video: {response.json()}")
@@ -718,7 +722,7 @@ def get_edge_data(app_token):
         log.info(f"Get edge_data")
         endpoint = jwt.decode(app_token, options={"verify_signature": False})['endpoint']
         msg_headers = {'Authorization' : f'Bearer {app_token}'}
-        response = requests.get(f"{endpoint}", headers=msg_headers)
+        response = requests.get(f"{endpoint}", headers=msg_headers, proxies=proxies)
 
         if response.status_code != 200:
             log.error(f"Failing get edge_data: {response.json()}")

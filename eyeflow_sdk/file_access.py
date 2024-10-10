@@ -29,9 +29,9 @@ class FileAccess():
         self.resource_id = resource_id
 
         if resource_id is not None:
-            self._local_folder = config_parms[storage]["local_folder"] + "/" + resource_id
+            self._local_folder = config_parms[storage] + "/" + resource_id
         else:
-            self._local_folder = config_parms[storage]["local_folder"]
+            self._local_folder = config_parms[storage]
 
         self._cloud_folder = None
         if "cloud_folder" in config_parms[storage]:

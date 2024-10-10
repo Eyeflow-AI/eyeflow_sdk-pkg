@@ -195,7 +195,7 @@ class Dataset():
         else:
             raise Exception(f"Example not found {example_img}")
 
-        exp_folder = os.path.join(CONFIG["file-service"]["dataset"]["local_folder"], self.id)
+        exp_folder = os.path.join(CONFIG["file-service"]["dataset"], self.id)
         if os.path.isfile(os.path.join(exp_folder, exp["example"])):
             with open(os.path.join(exp_folder, exp["example"]), 'rb') as fp:
                 self.images[exp["example"]] = fp.read()
@@ -209,7 +209,7 @@ class Dataset():
         """
         for exp in self.examples:
             if exp["example"] not in self.images:
-                exp_folder = os.path.join(CONFIG["file-service"]["dataset"]["local_folder"], self.id)
+                exp_folder = os.path.join(CONFIG["file-service"]["dataset"], self.id)
                 if os.path.isfile(os.path.join(exp_folder, exp["example"])):
                     with open(os.path.join(exp_folder, exp["example"]), 'rb') as fp:
                         self.images[exp["example"]] = fp.read()
@@ -222,7 +222,7 @@ class Dataset():
         Save images to disk
         """
         self.load_all_images()
-        exp_folder = os.path.join(CONFIG["file-service"]["dataset"]["local_folder"], self.id)
+        exp_folder = os.path.join(CONFIG["file-service"]["dataset"], self.id)
 
         for exp in self.examples:
             if os.path.isfile(os.path.join(exp_folder, exp["example"])):
@@ -294,7 +294,7 @@ class Dataset():
         example_list = np.array(example_list, dtype=dt)
         image_list = np.array(image_list)
 
-        export_path = os.path.join(CONFIG["file-service"]["export"]["local_folder"], dataset_id)
+        export_path = os.path.join(CONFIG["file-service"]["export"], dataset_id)
 
         with h5py.File(os.path.join(export_path, filename), 'w') as dsetfile:
             dsetfile.create_dataset('export_data', data=json.dumps(export_data, ensure_ascii=False, default=default_json_converter), dtype=dt)
@@ -337,7 +337,7 @@ class Dataset():
         def convert_date(str_date):
             return dateutil.parser.isoparse(str_date).replace(tzinfo=None)
 
-        export_path = os.path.join(CONFIG["file-service"]["export"]["local_folder"], dataset_id)
+        export_path = os.path.join(CONFIG["file-service"]["export"], dataset_id)
         with h5py.File(os.path.join(export_path, filename), 'r') as dsetfile:
             export_data = json.loads(dsetfile['export_data'][()])
 

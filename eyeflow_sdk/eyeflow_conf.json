@@ -16,6 +16,7 @@
         "event_image": "/opt/eyeflow/data/event_image",
         "components": "/opt/eyeflow/components",
         "model-components": "/opt/eyeflow/src/model-components",
+        "flow-components": "/opt/eyeflow/src/flow-components",
         "model-hist": "/opt/eyeflow/data/model-hist"
     },
     "flow_folder": "/opt/eyeflow/data/flow",

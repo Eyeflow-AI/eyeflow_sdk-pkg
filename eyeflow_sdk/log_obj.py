@@ -13,13 +13,15 @@ from pathlib import Path
 import json
 #----------------------------------------------------------------------------------------------------------------------------------
 
-conf_path = "/opt/eyeflow/run/eyeflow_conf.json"
+conf_path = os.path.join(os.getcwd(), "eyeflow_conf.json")
 if not os.path.exists(conf_path):
-    conf_path = "/opt/eyeflow/install/eyeflow_conf.json"
-
+    conf_path = os.path.join(os.getcwd(), "..", "run", "eyeflow_conf.json")
 if not os.path.exists(conf_path):
-    conf_path = os.path.join(os.path.dirname(__file__), "eyeflow_conf.json")
-
+    conf_path = os.path.join(os.getcwd(), "..", "install", "eyeflow_conf.json")
+if not os.path.exists(conf_path):
+    conf_path = os.path.join("/opt/eyeflow/run", "eyeflow_conf.json")
+if not os.path.exists(conf_path):
+    conf_path = os.path.join("/opt/eyeflow/install", "eyeflow_conf.json")
 if not os.path.exists(conf_path):
     print("Error: eyeflow_conf.json not found")
     sys.exit(1)

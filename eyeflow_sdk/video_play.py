@@ -57,6 +57,8 @@ class VideoPlay():
 
                     if len(self._video_frames) > self._window_size:
                         self.discard_frames_window()
+                else:
+                    return self._video_frames[str(self._max_frame)], self._max_frame
 
         return self._video_frames[str(frame)], frame
 

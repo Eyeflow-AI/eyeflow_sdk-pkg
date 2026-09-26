@@ -68,7 +68,7 @@ class LogObj:
             self.logger.addHandler(log_file_handler)
 
             # create console handler and set level to debug
-            console_handler = logging.StreamHandler()
+            console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
             console_handler.setLevel(logging.DEBUG)
             self.logger.addHandler(console_handler)
